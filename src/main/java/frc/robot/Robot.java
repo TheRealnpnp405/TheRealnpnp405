@@ -9,7 +9,6 @@
 // Shift+F5 to deploy
 // **************************************************************
 
-// TODO - get this code into Source control
 // TODO - Setup on North Computer
 
 package frc.robot;
