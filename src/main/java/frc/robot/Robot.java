@@ -9,8 +9,6 @@
 // Shift+F5 to deploy
 // **************************************************************
 
-// TODO - Setup on North Computer
-
 package frc.robot;
 
 import edu.wpi.first.wpilibj.TimedRobot;
