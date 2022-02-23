@@ -94,13 +94,13 @@ public class Robot extends TimedRobot {
   private final Spark m_topShooter = new Spark(4);
   private final Spark m_bottomShooter = new Spark(5);   
   private final MotorControllerGroup m_shooter = new MotorControllerGroup(m_topShooter, m_bottomShooter);
-  //private final Spark m_6 = new Spark(6);   
+  private final Spark m_wheel = new Spark(6);   
 
   // DIGITAL INPUT PORTS
   // DigitalInput(0), DigitalInput(1) are mapped to encoder enc_AirSide
   // DigitalInput(2), DigitalInput(3) are mapped to Encoder enc_RioSide
-  private final DigitalInput ls_climbAirSide______ = new DigitalInput(5);
-  private final DigitalInput ls_climbRioSide______ = new DigitalInput(6);
+  private final DigitalInput ls_climbAirSide = new DigitalInput(5);
+  private final DigitalInput ls_climbRioSide = new DigitalInput(6);
   //private final DigitalInput dio_7 = new DigitalInput(7);
   //private final DigitalInput dio_8 = new DigitalInput(8);
   private final DigitalInput s_ballSensor = new DigitalInput(9); // photoelectric
@@ -132,8 +132,6 @@ public class Robot extends TimedRobot {
   boolean forwardDriveToggle = true;
   String gameInfoAlliance = "Unknown";
   int gameInfoStation = 0;
-  boolean ls_climbRioSide = false;
-  boolean ls_climbAirSide = false;
   int autoRunCounter = 0;
   // autonomous variables
   boolean autoBallShot = false;  
@@ -210,6 +208,9 @@ public class Robot extends TimedRobot {
     SmartDashboard.putBoolean("Forward Drive", forwardDriveToggle); 
     SmartDashboard.putNumber("Y", flight.getY());
     SmartDashboard.putNumber("X", flight.getX()); 
+    // Climber Helpers
+    SmartDashboard.putBoolean("LS Airside",  ls_climbAirSide.get()); 
+    SmartDashboard.putBoolean("LS RioSide", ls_climbRioSide.get()); 
   }
 
   /** This function is called once when teleop is enabled. */
@@ -298,27 +299,15 @@ public class Robot extends TimedRobot {
       climbPart2();    
     }
     // TODO - install limit sensors and cleanup code ColorWheelLS.get()    
-    ls_climbRioSide = true;
-    ls_climbAirSide = true;
     if (controller.getRawButton(aButton) == true) {
       climbPart1();
-      wait(2000);
-      m_drive.arcadeDrive(-.45, 0);
-      wait(600);
-      m_drive.stopMotor();
-      if (!ls_climbRioSide && !ls_climbAirSide) { // zero touching
+      if (ls_climbRioSide.get() && ls_climbAirSide.get()) { // zero touching
         m_drive.arcadeDrive(-.45, 0);
-        wait(400);
-        m_drive.stopMotor();
-      } else if (!ls_climbRioSide && ls_climbAirSide) { // AirSide is touching, RioSide is not = turn right
+      } else if (ls_climbRioSide.get() && !ls_climbAirSide.get()) { // AirSide is touching, RioSide is not = turn right
         m_drive.arcadeDrive(-.45, .3);
-        wait(300);
-        m_drive.stopMotor();
-      } else if (ls_climbRioSide && !ls_climbAirSide) { // RioSide is touching, AirSide is not = turn left
+      } else if (!ls_climbRioSide.get() && ls_climbAirSide.get()) { // RioSide is touching, AirSide is not = turn left
         m_drive.arcadeDrive(-.45, -.3);
-        wait(300);
-        m_drive.stopMotor();
-      } else if (ls_climbRioSide && ls_climbAirSide) { // both touching
+      } else if (!ls_climbRioSide.get() && !ls_climbAirSide.get()) { // both touching
         m_drive.stopMotor();
         climbPart2(); 
       }
