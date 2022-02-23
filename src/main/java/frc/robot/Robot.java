@@ -50,7 +50,7 @@ public class Robot extends TimedRobot {
   private final Joystick flight = new Joystick(0);
   private final Joystick controller = new Joystick(1);  
   // Controller Buttons
-  //private static final int aButton = 1;
+  private static final int aButton = 1;
   private static final int bButton = 2;
   private static final int xButton = 3;  
   private static final int yButton = 4;  
@@ -59,7 +59,7 @@ public class Robot extends TimedRobot {
   private static final int backButton = 7; 
   private static final int startButton = 8;
   // Flight Buttons
-  //private static final int flight1 = 1; //trigger
+  private static final int flight1 = 1; //trigger
   private static final int flight2 = 2; //thumb
   //private static final int flight3 = 3; 
   //private static final int flight4 = 4; 
@@ -93,8 +93,9 @@ public class Robot extends TimedRobot {
   //OTHER MOTORS
   private final Spark m_topShooter = new Spark(4);
   private final Spark m_bottomShooter = new Spark(5);   
-  private final MotorControllerGroup m_shooter = new MotorControllerGroup(m_topShooter, m_bottomShooter);
   private final Spark m_wheel = new Spark(6);   
+  private final MotorControllerGroup m_shooter = new MotorControllerGroup(m_topShooter, m_bottomShooter, m_wheel);
+
 
   // DIGITAL INPUT PORTS
   // DigitalInput(0), DigitalInput(1) are mapped to encoder enc_AirSide
@@ -263,6 +264,9 @@ public class Robot extends TimedRobot {
     // ********************************
     // * SHOOTER
     // ********************************
+    if (flight.getRawButton(flight1)) {
+      m_wheel.set(1);
+    }
     if (controller.getRawButton(xButton)) { // controller X button
       m_shooter.set(1);
     } 
@@ -280,7 +284,7 @@ public class Robot extends TimedRobot {
     // * INTAKE
     // ********************************    
     if (s_ballSensor.get() == true) {
-      m_shooter.set(.75);
+      m_shooter.set(1);
     }
 
     // TODO - Cleanup Intake Logic, the ball is getting stuck
@@ -296,9 +300,9 @@ public class Robot extends TimedRobot {
     // ********************************
     // * CLIMBER
     // ********************************
-    // if (controller.getRawButton(backButton) == true) {
-    //   climbPart1();
-    // }    
+    if (controller.getRawButton(aButton) == true) {
+      climbPart1();
+    }    
     if (controller.getRawButton(startButton) == true) {
       climbPart2();    
     }
@@ -481,11 +485,11 @@ public class Robot extends TimedRobot {
         System.out.println("7454: Climb - no touch");
       } 
       else if (ls_climbRioSide.get() && !ls_climbAirSide.get()) { // AirSide is touching, RioSide is not = turn right
-        m_RioSide.set(-.45);
+        m_RioSide.set(-.25);
         System.out.println("7454: Climb  - Airside touching, Rioside not");
       } 
       else if (!ls_climbRioSide.get() && ls_climbAirSide.get()) { // RioSide is touching, AirSide is not = turn left
-        m_AirSide.set(-.45);
+        m_AirSide.set(-.25);
         System.out.println("7454: Climb  - Airside touching, Rioside not");
       } 
       else if (!ls_climbRioSide.get() && !ls_climbAirSide.get()) { // both touching
