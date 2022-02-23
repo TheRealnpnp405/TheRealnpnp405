@@ -50,7 +50,7 @@ public class Robot extends TimedRobot {
   private final Joystick flight = new Joystick(0);
   private final Joystick controller = new Joystick(1);  
   // Controller Buttons
-  private static final int aButton = 1;
+  //private static final int aButton = 1;
   private static final int bButton = 2;
   private static final int xButton = 3;  
   private static final int yButton = 4;  
@@ -133,6 +133,7 @@ public class Robot extends TimedRobot {
   String gameInfoAlliance = "Unknown";
   int gameInfoStation = 0;
   int autoRunCounter = 0;
+  boolean bClimberHooked = false;  
   // autonomous variables
   boolean autoBallShot = false;  
   int autoSensorDistanceToShoot = 0;
@@ -235,13 +236,14 @@ public class Robot extends TimedRobot {
     m_drive.arcadeDrive(flight.getY()*speedMultiplier, flight.getX()*xCorrect);
 
     // Flip Logic
-    if (flight.getRawButton(flight2)){
-      if (forwardDriveToggle==true){
+    if (flight.getRawButton(flight2)) {
+      if (forwardDriveToggle==true) {
         forwardDriveToggle=false;
         m_AirSide.setInverted(false);
         m_RioSide.setInverted(true);
         xCorrect = xCorrect*-1;
-      }else {
+      }
+      else {
         forwardDriveToggle=true;
         m_AirSide.setInverted(true);
         m_RioSide.setInverted(false);
@@ -261,14 +263,16 @@ public class Robot extends TimedRobot {
     // ********************************
     // * SHOOTER
     // ********************************
-    if (controller.getRawButton(xButton))  // controller X button
-    {
+    if (controller.getRawButton(xButton)) { // controller X button
       m_shooter.set(1);
-    } else if (controller.getRawButton(yButton)) { // reverse balls
+    } 
+    else if (controller.getRawButton(yButton)) { // reverse balls
       m_shooter.set(-1);
-    } else if (controller.getRawButton(bButton)) { // dump other team ball
+    } 
+    else if (controller.getRawButton(bButton)) { // dump other team ball
       m_shooter.set(.8);
-    } else {
+    } 
+    else {
       m_shooter.set(0);
     }    
 
@@ -292,25 +296,16 @@ public class Robot extends TimedRobot {
     // ********************************
     // * CLIMBER
     // ********************************
-    if (controller.getRawButton(backButton) == true) {
-      climbPart1();
-    }    
+    // if (controller.getRawButton(backButton) == true) {
+    //   climbPart1();
+    // }    
     if (controller.getRawButton(startButton) == true) {
       climbPart2();    
     }
-    // TODO - install limit sensors and cleanup code ColorWheelLS.get()    
-    if (controller.getRawButton(aButton) == true) {
+    if (controller.getRawButton(backButton) == true) {
       climbPart1();
-      if (ls_climbRioSide.get() && ls_climbAirSide.get()) { // zero touching
-        m_drive.arcadeDrive(-.45, 0);
-      } else if (ls_climbRioSide.get() && !ls_climbAirSide.get()) { // AirSide is touching, RioSide is not = turn right
-        m_drive.arcadeDrive(-.45, .3);
-      } else if (!ls_climbRioSide.get() && ls_climbAirSide.get()) { // RioSide is touching, AirSide is not = turn left
-        m_drive.arcadeDrive(-.45, -.3);
-      } else if (!ls_climbRioSide.get() && !ls_climbAirSide.get()) { // both touching
-        m_drive.stopMotor();
-        climbPart2(); 
-      }
+      climbPart2();
+      climbPart3(); 
     }
 
     // Small manual
@@ -318,7 +313,8 @@ public class Robot extends TimedRobot {
       solenoidShort.set(DoubleSolenoid.Value.kReverse);
       wait(100);
       solenoidShort.set(DoubleSolenoid.Value.kOff);
-    } else if (flight.getRawButton(flight8) == true) {
+    } 
+    else if (flight.getRawButton(flight8) == true) {
       solenoidShort.set(DoubleSolenoid.Value.kForward);
       wait(100);
       solenoidShort.set(DoubleSolenoid.Value.kOff);
@@ -328,7 +324,8 @@ public class Robot extends TimedRobot {
       solenoidMedium.set(DoubleSolenoid.Value.kReverse);
       wait(500);
       solenoidMedium.set(DoubleSolenoid.Value.kOff);
-    } else if (flight.getRawButton(flight10) == true) {
+    } 
+    else if (flight.getRawButton(flight10) == true) {
       solenoidMedium.set(DoubleSolenoid.Value.kForward);
       wait(500);
       solenoidMedium.set(DoubleSolenoid.Value.kOff);
@@ -338,7 +335,8 @@ public class Robot extends TimedRobot {
       solenoidLong.set(DoubleSolenoid.Value.kReverse);
       wait(1000);
       solenoidLong.set(DoubleSolenoid.Value.kOff);
-    } else if (flight.getRawButton(flight12) == true) {
+    } 
+    else if (flight.getRawButton(flight12) == true) {
       solenoidLong.set(DoubleSolenoid.Value.kForward);
       wait(1000);
       solenoidLong.set(DoubleSolenoid.Value.kOff);
@@ -347,16 +345,17 @@ public class Robot extends TimedRobot {
     // ********************************
     // * SENSORS
     // ********************************
+    // TODO - NICE TO HAVE fix later
     // Color Sensor Sensor   
-    if (s_colorSensor.getProximity() < 200) { 
-      currentBallColor = "Empty";
-    } else if (s_colorMatch.matchClosestColor(s_colorSensor.getColor()).color == kBlue) {
-      currentBallColor = "Blue";
-    } else if (s_colorMatch.matchClosestColor(s_colorSensor.getColor()).color == kRed) {
-      currentBallColor = "Red";
-    } else {      
-      currentBallColor = "Unknown";
-    }
+    // if (s_colorSensor.getProximity() < 200) { 
+    //   currentBallColor = "Empty";
+    // } else if (s_colorMatch.matchClosestColor(s_colorSensor.getColor()).color == kBlue) {
+    //   currentBallColor = "Blue";
+    // } else if (s_colorMatch.matchClosestColor(s_colorSensor.getColor()).color == kRed) {
+    //   currentBallColor = "Red";
+    // } else {      
+    //   currentBallColor = "Unknown";
+    // }
 
     // Ultrasonic Sensor
     voltageScaleFactor = 5/RobotController.getVoltage5V(); //Calculate what percentage of 5 Volts we are actually at
@@ -389,7 +388,6 @@ public class Robot extends TimedRobot {
     else {
       autoBackupTurnAmount = 0; // straight back
     }  
-    // Set distance to trigger shoot
     //TODO - test with bumpers, etc
     autoSensorDistanceToShoot = 22;  // inches
     autoDistanceToBackupAfterShoot = 7; // feet
@@ -473,11 +471,33 @@ public class Robot extends TimedRobot {
     solenoidShort.set(DoubleSolenoid.Value.kReverse);
     wait(100);
     solenoidShort.set(DoubleSolenoid.Value.kOff);
+  } 
 
-    // TODO - limit sensor code here
-  }    
+  // This function will get the medium hook on the bar
+  public void climbPart2() {     
+    while (!bClimberHooked) {
+      if (ls_climbRioSide.get() && ls_climbAirSide.get()) { // zero touching
+        m_drive.arcadeDrive(-.45, 0);
+        System.out.println("7454: Climb - no touch");
+      } 
+      else if (ls_climbRioSide.get() && !ls_climbAirSide.get()) { // AirSide is touching, RioSide is not = turn right
+        m_RioSide.set(-.45);
+        System.out.println("7454: Climb  - Airside touching, Rioside not");
+      } 
+      else if (!ls_climbRioSide.get() && ls_climbAirSide.get()) { // RioSide is touching, AirSide is not = turn left
+        m_AirSide.set(-.45);
+        System.out.println("7454: Climb  - Airside touching, Rioside not");
+      } 
+      else if (!ls_climbRioSide.get() && !ls_climbAirSide.get()) { // both touching
+        System.out.println("7454: Climb  - Hooked!!!");
+        m_drive.stopMotor();
+        bClimberHooked = true;
+      }
+    }
+  }
+
   // This function will complete the climb, medium in, long out, short in, long in
-  public void climbPart2() {
+  public void climbPart3() {
     solenoidMedium.set(DoubleSolenoid.Value.kForward);
     solenoidLong.set(DoubleSolenoid.Value.kReverse);
     wait(2500);
