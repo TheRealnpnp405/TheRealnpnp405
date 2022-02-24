@@ -515,6 +515,7 @@ public class Robot extends TimedRobot {
     solenoidLong.set(DoubleSolenoid.Value.kForward);
     wait(2000);
     solenoidLong.set(DoubleSolenoid.Value.kOff);   
+    bClimberHooked = false;
   }
 
 
