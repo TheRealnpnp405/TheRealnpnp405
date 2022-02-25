@@ -9,15 +9,11 @@
 // Shift+F5 to deploy
 // **************************************************************
 
-//Hi Bram
-
 package frc.robot;
 
 import edu.wpi.first.wpilibj.TimedRobot;
-//import edu.wpi.first.wpilibj.smartdashboard.SendableChooser; // allows picking autonomous program
 import edu.wpi.first.wpilibj.smartdashboard.SmartDashboard;
 import edu.wpi.first.wpilibj.Joystick;
-import edu.wpi.first.wpilibj.motorcontrol.MotorController;
 import edu.wpi.first.wpilibj.motorcontrol.MotorControllerGroup;
 import edu.wpi.first.wpilibj.motorcontrol.Spark; 
 import edu.wpi.first.wpilibj.drive.DifferentialDrive;
@@ -29,10 +25,6 @@ import edu.wpi.first.wpilibj.AnalogInput; // RoboRio ANALOG IN 0-3
 import edu.wpi.first.wpilibj.PneumaticsModuleType; // Interfaces to our Pneumatics Control Module
 import edu.wpi.first.wpilibj.Compressor; // ability to use compressor
 import edu.wpi.first.wpilibj.DoubleSolenoid; 
-import edu.wpi.first.wpilibj.I2C; // interface with RoboRIO i2C port where color sensor connects
-import edu.wpi.first.wpilibj.util.Color;
-import com.revrobotics.ColorSensorV3;
-import com.revrobotics.ColorMatch;
 
 /**
  * The VM is configured to automatically run this class, and to call the functions corresponding to
@@ -41,12 +33,6 @@ import com.revrobotics.ColorMatch;
  * project.
  */
 public class Robot extends TimedRobot {
-  // autonomous mode Picker
-  //private static final String kA= "A Mode";
-  //private static final String kB = "B Mode";
-  //private String m_autoSelected;
-  //private final SendableChooser<String> m_chooser = new SendableChooser<>();
-
   // JOYSTICKS
   private final Joystick flight = new Joystick(0);
   private final Joystick controller = new Joystick(1);  
@@ -108,27 +94,16 @@ public class Robot extends TimedRobot {
   private final DigitalInput s_ballSensor = new DigitalInput(9); // photoelectric
   
   // COMPRESSOR AND PNEUMATICS
-  // Short Extend on PCM 0, Retract on PCM 1
-  // Long Extend on PCM 2, Retract on PCM 3
-  // Medium Extend on PCM 4, Retract on PCM 5
   private final Compressor c_compressor = new Compressor(0, PneumaticsModuleType.CTREPCM);
-  private final DoubleSolenoid solenoidShort = new DoubleSolenoid(PneumaticsModuleType.CTREPCM,0,1);
-  private final DoubleSolenoid solenoidLong = new DoubleSolenoid(PneumaticsModuleType.CTREPCM,2,3);
-  private final DoubleSolenoid solenoidMedium = new DoubleSolenoid(PneumaticsModuleType.CTREPCM,4,5);
+  private final DoubleSolenoid solenoidShort = new DoubleSolenoid(PneumaticsModuleType.CTREPCM,0,1); // Short Extend on PCM 0, Retract on PCM 1
+  private final DoubleSolenoid solenoidLong = new DoubleSolenoid(PneumaticsModuleType.CTREPCM,2,3); // Long Extend on PCM 2, Retract on PCM 3
+  private final DoubleSolenoid solenoidMedium = new DoubleSolenoid(PneumaticsModuleType.CTREPCM,4,5); // Medium Extend on PCM 4, Retract on PCM 5
 
   // ULTRASONIC SENSOR - // MaxBotix MB1043 Ultrasonic Sensor - www.MaxBotix.com/firstrobotics
   private double voltageScaleFactor = 1;
   private AnalogInput ultrasonicSensor = new AnalogInput(0);
   private double ultrasonicSensorRangeRaw = 0;
   private double ultrasonicSensorRangeInches = 0;
-
-  // REV COLOR SENSOR
-  private final I2C.Port i2cPort = I2C.Port.kOnboard;
-  private final ColorSensorV3 s_colorSensor= new ColorSensorV3(i2cPort);
-  private final ColorMatch s_colorMatch = new ColorMatch();
-  private final Color kBlue = new Color(0.160, 0.390, 0.450);
-  private final Color kRed = new Color(0.570, 0.310, 0.120);  
-  String currentBallColor = "Unknown";
 
   // GLOBAL VARIABLES
   boolean forwardDriveToggle = true;
@@ -167,15 +142,6 @@ public class Robot extends TimedRobot {
     
     // Turn Compressor on
     c_compressor.enableDigital();
-
-    // Color Matches
-    s_colorMatch.addColorMatch(kBlue);
-    s_colorMatch.addColorMatch(kRed);
-
-    //Autonomous Picker
-    //m_chooser.setDefaultOption("Simple Auto", m_simpleAuto);
-    //m_chooser.addOption("Complex Auto", m_complexAuto);
-    //SmartDashboard.getTab("Autonomous").add(m_chooser);
   }
 
 
@@ -198,12 +164,6 @@ public class Robot extends TimedRobot {
     SmartDashboard.putNumber("Encoder Air Side", enc_AirSide.getDistance());
     // Ultrasonic Sensor  
     SmartDashboard.putNumber("Ultrasonic Inches", Math.round(ultrasonicSensorRangeInches*100.0)/100.0);    
-    // Color Sensor
-    SmartDashboard.putString("Ball Color", currentBallColor);    
-    SmartDashboard.putNumber("Ball Proximity", s_colorSensor.getProximity());
-    SmartDashboard.putNumber("Red", s_colorSensor.getColor().red);
-    SmartDashboard.putNumber("Green", s_colorSensor.getColor().green);
-    SmartDashboard.putNumber("Blue", s_colorSensor.getColor().blue);
     // Drive Helpers
     SmartDashboard.putNumber("xCorrect", xCorrect);
     SmartDashboard.putNumber("speedMultiplier", speedMultiplier); 
@@ -350,18 +310,6 @@ public class Robot extends TimedRobot {
     // ********************************
     // * SENSORS
     // ********************************
-    // TODO - NICE TO HAVE fix later
-    // Color Sensor Sensor   
-    // if (s_colorSensor.getProximity() < 200) { 
-    //   currentBallColor = "Empty";
-    // } else if (s_colorMatch.matchClosestColor(s_colorSensor.getColor()).color == kBlue) {
-    //   currentBallColor = "Blue";
-    // } else if (s_colorMatch.matchClosestColor(s_colorSensor.getColor()).color == kRed) {
-    //   currentBallColor = "Red";
-    // } else {      
-    //   currentBallColor = "Unknown";
-    // }
-
     // Ultrasonic Sensor
     voltageScaleFactor = 5/RobotController.getVoltage5V(); //Calculate what percentage of 5 Volts we are actually at
     ultrasonicSensorRangeRaw = ultrasonicSensor.getValue();
