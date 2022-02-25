@@ -251,9 +251,8 @@ public class Robot extends TimedRobot {
         xCorrect = xCorrect*-1;
       }
       // prevent doubleclick of the flip button
-      // TODO -  Test the flip double click 
       try { 
-        Thread.sleep(150); 
+        Thread.sleep(300); 
       } 
       catch(InterruptedException ex) {
         Thread.currentThread().interrupt();
