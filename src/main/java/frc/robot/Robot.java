@@ -17,6 +17,7 @@ import edu.wpi.first.wpilibj.TimedRobot;
 //import edu.wpi.first.wpilibj.smartdashboard.SendableChooser; // allows picking autonomous program
 import edu.wpi.first.wpilibj.smartdashboard.SmartDashboard;
 import edu.wpi.first.wpilibj.Joystick;
+import edu.wpi.first.wpilibj.motorcontrol.MotorController;
 import edu.wpi.first.wpilibj.motorcontrol.MotorControllerGroup;
 import edu.wpi.first.wpilibj.motorcontrol.Spark; 
 import edu.wpi.first.wpilibj.drive.DifferentialDrive;
@@ -213,6 +214,7 @@ public class Robot extends TimedRobot {
     // Climber Helpers
     SmartDashboard.putBoolean("LS Airside",  ls_climbAirSide.get()); 
     SmartDashboard.putBoolean("LS RioSide", ls_climbRioSide.get()); 
+    SmartDashboard.putBoolean("At Pressure", c_compressor.getPressureSwitchValue());
   }
 
   /** This function is called once when teleop is enabled. */
