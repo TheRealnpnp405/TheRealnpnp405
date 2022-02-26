@@ -41,8 +41,8 @@ public class Robot extends TimedRobot {
   private static final int bButton = 2;
   private static final int xButton = 3;  
   private static final int yButton = 4;  
-  //private static final int lbButton = 5; 
-  //private static final int rbButton = 6; 
+  private static final int lbButton = 5; 
+  private static final int rbButton = 6; 
   private static final int backButton = 7; 
   private static final int startButton = 8;
   // Flight Buttons
@@ -204,13 +204,13 @@ public class Robot extends TimedRobot {
         forwardDriveToggle=false;
         m_AirSide.setInverted(false);
         m_RioSide.setInverted(true);
-        xCorrect = xCorrect*-1;
+        xCorrect = Math.abs(xCorrect)*-1;
       }
       else {
         forwardDriveToggle=true;
         m_AirSide.setInverted(true);
         m_RioSide.setInverted(false);
-        xCorrect = xCorrect*-1;
+        xCorrect = Math.abs(xCorrect);
       }
       // prevent doubleclick of the flip button
       try { 
@@ -228,10 +228,10 @@ public class Robot extends TimedRobot {
     if (flight.getRawButton(flight1)) {
       m_wheel.set(1);
     }
-    if (controller.getRawButton(xButton)) { // controller X button
+    if (controller.getRawButton(rbButton)) { // controller X button
       m_shooter.set(1);
     } 
-    else if (controller.getRawButton(yButton)) { // reverse balls
+    else if (controller.getRawButton(lbButton)) { // reverse balls
       m_shooter.set(-1);
     } 
     else if (controller.getRawButton(bButton)) { // dump other team ball
@@ -344,7 +344,7 @@ public class Robot extends TimedRobot {
     //TODO - test with bumpers, etc
     autoSensorDistanceToShoot = 22;  // inches
     autoDistanceToBackupAfterShoot = 7; // feet
-    autoForwardSpeed = .45;
+    autoForwardSpeed = -.45;
     autoBackupSpeed = .50;    
   }
 
@@ -364,14 +364,21 @@ public class Robot extends TimedRobot {
     }
 
     // Drive forward until sensor distance is reached
-    if (ultrasonicSensorRangeInches > autoSensorDistanceToShoot && autoRunCounter==0) {
-      System.out.println("7454: Autonomous Rolling ultrasonicSensor at " + ultrasonicSensorRangeInches + "inches");
-      m_drive.arcadeDrive(autoForwardSpeed, 0);
-    }
+    // if (autoSensorDistanceToShoot && autoRunCounter==0) {
+    //   System.out.println("7454: Autonomous Rolling ultrasonicSensor at " + ultrasonicSensorRangeInches + "inches");
+    //   m_drive.arcadeDrive(autoForwardSpeed, 0);
+    // }
 
     // Run this code once when distance is reached
-    if (ultrasonicSensorRangeInches < autoSensorDistanceToShoot && autoRunCounter==0) {
+    if ( autoRunCounter==0) {
       // set encoders to 0 first time code is ran
+      enc_RioSide.reset();
+      enc_AirSide.reset();   
+
+      while (enc_RioSide.getDistance() < 3) {
+        m_drive.arcadeDrive(autoForwardSpeed, 0);
+      }    
+
       if (autoRunCounter==0)
       {
         enc_RioSide.reset();
@@ -383,7 +390,7 @@ public class Robot extends TimedRobot {
       m_drive.stopMotor();
       System.out.println("7454: Autonomous Shoot");
       m_shooter.set(1); // shoot
-      wait(1000); // run for a second to make sure clear
+      wait(1500); // run for a second to make sure clear
       m_shooter.set(0);
       autoBallShot = true;
       wait(200);
