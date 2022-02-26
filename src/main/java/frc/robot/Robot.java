@@ -261,9 +261,9 @@ public class Robot extends TimedRobot {
     // ********************************
     // * CLIMBER
     // ********************************
-    if (controller.getRawButton(aButton) == true) {
-      climbPart1();
-    }    
+    // if (controller.getRawButton(aButton) == true) {
+    //   climbPart1();
+    // }    
     if (controller.getRawButton(startButton) == true) {
       climbPart2();    
     }
@@ -418,6 +418,11 @@ public class Robot extends TimedRobot {
 
   // This function will raise medium solenoid, push out small, and move robot into posistion using limit sensors
   public void climbPart1() {
+    if (!forwardDriveToggle) {
+      m_AirSide.setInverted(true);
+      m_RioSide.setInverted(false);
+      xCorrect = xCorrect*-1;
+    }
     solenoidMedium.set(DoubleSolenoid.Value.kReverse);
     wait(150);
     solenoidMedium.set(DoubleSolenoid.Value.kOff);
