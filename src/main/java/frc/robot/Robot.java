@@ -37,9 +37,9 @@ public class Robot extends TimedRobot {
   private final Joystick flight = new Joystick(0);
   private final Joystick controller = new Joystick(1);  
   // Controller Buttons
-  private static final int aButton = 1;
-  private static final int bButton = 2;
-  private static final int xButton = 3;  
+  //private static final int aButton = 1;
+  //private static final int bButton = 2;
+  //private static final int xButton = 3;  
   private static final int yButton = 4;  
   private static final int lbButton = 5; 
   private static final int rbButton = 6; 
@@ -109,15 +109,16 @@ public class Robot extends TimedRobot {
   boolean forwardDriveToggle = true;
   String gameInfoAlliance = "Unknown";
   int gameInfoStation = 0;
-  int autoRunCounter = 0;
   boolean bClimberHooked = false;  
   // autonomous variables
+  int autoRunCounter = 0;
+  int autoEncoderCounter = 0;
   boolean autoBallShot = false;  
-  int autoSensorDistanceToShoot = 0;
-  int autoDistanceToBackupAfterShoot = 0;
-  double autoBackupTurnAmount = 0;
-  double autoForwardSpeed = 0;
-  double autoBackupSpeed = 0;
+  // int autoSensorDistanceToShoot = 0;
+  // int autoDistanceToBackupAfterShoot = 0;
+  // double autoBackupTurnAmount = 0;
+  // double autoForwardSpeed = 0;
+  // double autoBackupSpeed = 0;
 
   /**
    * This function is run when the robot is first started up and should be used for any
@@ -163,7 +164,7 @@ public class Robot extends TimedRobot {
     SmartDashboard.putNumber("Encoder Rio Side", enc_RioSide.getDistance());
     SmartDashboard.putNumber("Encoder Air Side", enc_AirSide.getDistance());
     // Ultrasonic Sensor  
-    SmartDashboard.putNumber("Ultrasonic Inches", Math.round(ultrasonicSensorRangeInches*100.0)/100.0);    
+    //SmartDashboard.putNumber("Ultrasonic Inches", Math.round(ultrasonicSensorRangeInches*100.0)/100.0);    
     // Drive Helpers
     SmartDashboard.putNumber("xCorrect", xCorrect);
     SmartDashboard.putNumber("speedMultiplier", speedMultiplier); 
@@ -220,22 +221,18 @@ public class Robot extends TimedRobot {
         Thread.currentThread().interrupt();
       }
     }
-    // TODO - FINE Tuning - Have drive team drive.  How is turning?  Flip?  Speed? 
 
     // ********************************
     // * SHOOTER
     // ********************************
     if (flight.getRawButton(flight1)) {
-      m_wheel.set(1);
+      m_shooter.set(1);
     }
-    if (controller.getRawButton(rbButton)) { // controller X button
+    else if (controller.getRawButton(rbButton)) { // controller X button
       m_shooter.set(1);
     } 
     else if (controller.getRawButton(lbButton)) { // reverse balls
       m_shooter.set(-1);
-    } 
-    else if (controller.getRawButton(bButton)) { // dump other team ball
-      m_shooter.set(.8);
     } 
     else {
       m_shooter.set(0);
@@ -244,12 +241,12 @@ public class Robot extends TimedRobot {
     // ********************************
     // * INTAKE
     // ********************************    
-    if (s_ballSensor.get() == true) {
-      m_shooter.set(1);
+    if (controller.getRawButton(yButton)) { // Reverse Dump other team ball
+      m_shooter.set(-1);
+    } 
+      else if (s_ballSensor.get() == true) {
+        m_shooter.set(1);
     }
-
-    // TODO - Cleanup Intake Logic, the ball is getting stuck
-    // TODO - NICE TO HAVE  - Dump other team ball by reversing intake
     // if (currentBallColor=="Blue" || currentBallColor=="Red") {
     //   if (currentBallColor != gameInfoAlliance) {
     //     m_shooter.set(1);
@@ -264,10 +261,10 @@ public class Robot extends TimedRobot {
     // if (controller.getRawButton(aButton) == true) {
     //   climbPart1();
     // }    
-    if (controller.getRawButton(startButton) == true) {
-      climbPart2();    
-    }
-    if (controller.getRawButton(backButton) == true) {
+    // if (controller.getRawButton(startButton) == true) {
+    //   climbPart2();    
+    // }
+    if (controller.getRawButton(backButton) == true && controller.getRawButton(startButton) == true) {
       climbPart1();
       climbPart2();
       climbPart3(); 
@@ -311,9 +308,9 @@ public class Robot extends TimedRobot {
     // * SENSORS
     // ********************************
     // Ultrasonic Sensor
-    voltageScaleFactor = 5/RobotController.getVoltage5V(); //Calculate what percentage of 5 Volts we are actually at
-    ultrasonicSensorRangeRaw = ultrasonicSensor.getValue();
-    ultrasonicSensorRangeInches = ultrasonicSensorRangeRaw * voltageScaleFactor * 0.0492;    
+    // voltageScaleFactor = 5/RobotController.getVoltage5V(); //Calculate what percentage of 5 Volts we are actually at
+    // ultrasonicSensorRangeRaw = ultrasonicSensor.getValue();
+    // ultrasonicSensorRangeInches = ultrasonicSensorRangeRaw * voltageScaleFactor * 0.0492;    
 
   } // END teleopPeriodic
   
@@ -332,20 +329,16 @@ public class Robot extends TimedRobot {
    */
   @Override
   public void autonomousInit() {
-    if (gameInfoStation == 1) { 
-      autoBackupTurnAmount = -.14; // back and to RioSide
-    } 
-    else if (gameInfoStation == 3) { 
-      autoBackupTurnAmount = .14; // back and to Airside
-    } 
-    else {
-      autoBackupTurnAmount = 0; // straight back
-    }  
-    //TODO - test with bumpers, etc
-    autoSensorDistanceToShoot = 22;  // inches
-    autoDistanceToBackupAfterShoot = 7; // feet
-    autoForwardSpeed = -.45;
-    autoBackupSpeed = .50;    
+
+    // if (gameInfoStation == 1) { 
+    //   autoBackupTurnAmount = -.14; // back and to RioSide
+    // } 
+    // else if (gameInfoStation == 3) { 
+    //   autoBackupTurnAmount = .14; // back and to Airside
+    // } 
+    // else {
+    //  autoBackupTurnAmount = 0; // straight back
+    //}  
   }
 
   /** This function is called periodically during autonomous. */
@@ -359,7 +352,7 @@ public class Robot extends TimedRobot {
     // writes start block
     if ( autoRunCounter==0) { 
       SmartDashboard.putNumber("Auto Ultrasonic Inches", Math.round(ultrasonicSensorRangeInches*100.0)/100.0);
-      System.out.println("7454: Autonomous will shoot, reverse, based on " + gameInfoStation + " backupY: " +autoBackupTurnAmount );
+      //System.out.println("7454: Autonomous will shoot, reverse, based on " + gameInfoStation + " backupY: " +autoBackupTurnAmount );
       System.out.println("7454: Autonomous start ultrasonicSensor at " + ultrasonicSensorRangeInches + "inches");
     }
 
@@ -370,42 +363,35 @@ public class Robot extends TimedRobot {
     // }
 
     // Run this code once when distance is reached
-    if ( autoRunCounter==0) {
+    if ( autoRunCounter==0 && !autoBallShot ) {
       // set encoders to 0 first time code is ran
       enc_RioSide.reset();
       enc_AirSide.reset();   
 
-      while (enc_RioSide.getDistance() < 3) {
-        m_drive.arcadeDrive(autoForwardSpeed, 0);
-      }    
-
-      if (autoRunCounter==0)
-      {
-        enc_RioSide.reset();
-        enc_AirSide.reset();             
-      }
-      wait(200);
-      autoRunCounter++;
-      System.out.println("7454: Autonomous stop ultrasonicSensor at " + ultrasonicSensorRangeInches + "inches");
-      m_drive.stopMotor();
-      System.out.println("7454: Autonomous Shoot");
+      // drive forward 3 feet
+      m_drive.arcadeDrive(-.45, 0);
+      wait(3000);
+      m_drive.stopMotor(); // Stop Forward
       m_shooter.set(1); // shoot
-      wait(1500); // run for a second to make sure clear
-      m_shooter.set(0);
+      wait(1500); // run for a second to make sure clear 
+      m_shooter.set(0); // Stop Shoot
       autoBallShot = true;
-      wait(200);
-
-      // Backup after shooting    
-      while (enc_RioSide.getDistance() < autoDistanceToBackupAfterShoot) {
-        m_drive.arcadeDrive(autoBackupSpeed, autoBackupTurnAmount);
-      }    
-      m_drive.stopMotor();
+      enc_RioSide.reset(); // reset encoders
+      enc_AirSide.reset();  
     }
-      if (autoRunCounter>0 && autoBallShot) {
-        System.out.println("7454: Autonomous complete");
+    if ( autoRunCounter==0 && autoBallShot ) {
+
+      // drive backwards 7 feet
+      if ((enc_RioSide.getDistance() + enc_AirSide.getDistance())/2 < 7) {
+        m_drive.arcadeDrive(.55, 0);   
+      }
+      else {
+        autoRunCounter++;
         m_drive.stopMotor();
-    }
-
+        System.out.println("7454: Autonomous complete");
+      } 
+    } 
+  
   }  // END Autonomous
 
 
