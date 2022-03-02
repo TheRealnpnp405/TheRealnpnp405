@@ -49,7 +49,7 @@ public class Robot extends TimedRobot {
   private static final int flight1 = 1; //trigger
   private static final int flight2 = 2; //thumb
   //private static final int flight3 = 3; 
-  //private static final int flight4 = 4; 
+  private static final int flight4 = 4; 
   //private static final int flight5 = 5; 
   //private static final int flight6 = 6; 
   private static final int flight7 = 7; 
@@ -110,6 +110,7 @@ public class Robot extends TimedRobot {
   String gameInfoAlliance = "Unknown";
   int gameInfoStation = 0;
   boolean bClimberHooked = false;  
+  boolean bClimberAbort = false;
   // autonomous variables
   int autoRunCounter = 0;
   int autoEncoderCounter = 0;
@@ -267,7 +268,12 @@ public class Robot extends TimedRobot {
     if (controller.getRawButton(backButton) == true && controller.getRawButton(startButton) == true) {
       climbPart1();
       climbPart2();
-      climbPart3(); 
+      if (!bClimberAbort) {
+        climbPart3(); 
+      }
+      else {
+        bClimberHooked = false;
+      }
     }
 
     // Small manual
@@ -411,6 +417,9 @@ public class Robot extends TimedRobot {
 
   // This function will raise medium solenoid, push out small, and move robot into posistion using limit sensors
   public void climbPart1() {
+    bClimberHooked = false;
+    bClimberAbort = false;
+
     if (!forwardDriveToggle) {
       m_AirSide.setInverted(true);
       m_RioSide.setInverted(false);
@@ -427,7 +436,13 @@ public class Robot extends TimedRobot {
   // This function will get the medium hook on the bar
   public void climbPart2() {     
     while (!bClimberHooked) {
-      if (ls_climbRioSide.get() && ls_climbAirSide.get()) { // zero touching
+      if (flight.getRawButton(flight4) == true) {  //abort climb
+        System.out.println("7454: Climb  - Abort.");
+        m_drive.stopMotor();
+        bClimberHooked = true;
+        bClimberAbort = true;
+      }
+      else if (ls_climbRioSide.get() && ls_climbAirSide.get()) { // zero touching
         m_drive.arcadeDrive(-.45, 0);
         System.out.println("7454: Climb - no touch");
       } 
