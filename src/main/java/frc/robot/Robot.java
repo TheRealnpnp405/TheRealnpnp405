@@ -469,7 +469,7 @@ public class Robot extends TimedRobot {
     wait(2500);
     solenoidMedium.set(DoubleSolenoid.Value.kOff);
     solenoidLong.set(DoubleSolenoid.Value.kOff);
-    wait(2000);
+    wait(3000);
     solenoidShort.set(DoubleSolenoid.Value.kForward);
     wait(500);
     solenoidShort.set(DoubleSolenoid.Value.kOff);
