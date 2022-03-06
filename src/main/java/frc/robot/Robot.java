@@ -375,7 +375,7 @@ public class Robot extends TimedRobot {
       enc_AirSide.reset();   
 
       // drive forward 3 feet
-      m_drive.arcadeDrive(-.45, 0);
+      m_drive.arcadeDrive(-.5, 0);
       wait(3000);
       m_drive.stopMotor(); // Stop Forward
       m_shooter.set(1); // shoot
@@ -465,9 +465,10 @@ public class Robot extends TimedRobot {
   // This function will complete the climb, medium in, long out, short in, long in
   public void climbPart3() {
     solenoidMedium.set(DoubleSolenoid.Value.kForward);
+    wait(2000); 
+    solenoidMedium.set(DoubleSolenoid.Value.kOff);
     solenoidLong.set(DoubleSolenoid.Value.kReverse);
     wait(2500);
-    solenoidMedium.set(DoubleSolenoid.Value.kOff);
     solenoidLong.set(DoubleSolenoid.Value.kOff);
     wait(3000);
     solenoidShort.set(DoubleSolenoid.Value.kForward);
