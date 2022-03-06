@@ -465,12 +465,12 @@ public class Robot extends TimedRobot {
   // This function will complete the climb, medium in, long out, short in, long in
   public void climbPart3() {
     solenoidMedium.set(DoubleSolenoid.Value.kForward);
-    wait(2000); 
-    solenoidMedium.set(DoubleSolenoid.Value.kOff);
+    wait(3500); 
+    //solenoidMedium.set(DoubleSolenoid.Value.kOff);
     solenoidLong.set(DoubleSolenoid.Value.kReverse);
     wait(2500);
     solenoidLong.set(DoubleSolenoid.Value.kOff);
-    wait(3000);
+    wait(2000);
     solenoidShort.set(DoubleSolenoid.Value.kForward);
     wait(500);
     solenoidShort.set(DoubleSolenoid.Value.kOff);
