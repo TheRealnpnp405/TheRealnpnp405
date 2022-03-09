@@ -18,13 +18,14 @@ import edu.wpi.first.wpilibj.motorcontrol.MotorControllerGroup;
 import edu.wpi.first.wpilibj.motorcontrol.Spark; 
 import edu.wpi.first.wpilibj.drive.DifferentialDrive;
 import edu.wpi.first.wpilibj.Encoder;
-import edu.wpi.first.wpilibj.RobotController;  //RoboRIO functions
-import edu.wpi.first.wpilibj.DriverStation; // ability to get sata from DriverStation
+//import edu.wpi.first.wpilibj.RobotController;  //RoboRIO functions
+//import edu.wpi.first.wpilibj.DriverStation; // ability to get sata from DriverStation
 import edu.wpi.first.wpilibj.DigitalInput; // RoboRIO DIO Ports
-import edu.wpi.first.wpilibj.AnalogInput; // RoboRio ANALOG IN 0-3
+//import edu.wpi.first.wpilibj.AnalogInput; // RoboRio ANALOG IN 0-3
 import edu.wpi.first.wpilibj.PneumaticsModuleType; // Interfaces to our Pneumatics Control Module
 import edu.wpi.first.wpilibj.Compressor; // ability to use compressor
-import edu.wpi.first.wpilibj.DoubleSolenoid; 
+import edu.wpi.first.wpilibj.DoubleSolenoid;
+import edu.wpi.first.cameraserver.CameraServer;
 
 /**
  * The VM is configured to automatically run this class, and to call the functions corresponding to
@@ -48,7 +49,7 @@ public class Robot extends TimedRobot {
   // Flight Buttons
   private static final int flight1 = 1; //trigger
   private static final int flight2 = 2; //thumb
-  //private static final int flight3 = 3; 
+  private static final int flight3 = 3; 
   private static final int flight4 = 4; 
   //private static final int flight5 = 5; 
   //private static final int flight6 = 6; 
@@ -99,27 +100,18 @@ public class Robot extends TimedRobot {
   private final DoubleSolenoid solenoidLong = new DoubleSolenoid(PneumaticsModuleType.CTREPCM,2,3); // Long Extend on PCM 2, Retract on PCM 3
   private final DoubleSolenoid solenoidMedium = new DoubleSolenoid(PneumaticsModuleType.CTREPCM,4,5); // Medium Extend on PCM 4, Retract on PCM 5
 
-  // ULTRASONIC SENSOR - // MaxBotix MB1043 Ultrasonic Sensor - www.MaxBotix.com/firstrobotics
-  private double voltageScaleFactor = 1;
-  private AnalogInput ultrasonicSensor = new AnalogInput(0);
-  private double ultrasonicSensorRangeRaw = 0;
-  private double ultrasonicSensorRangeInches = 0;
-
   // GLOBAL VARIABLES
   boolean forwardDriveToggle = true;
+  boolean intakeToggle = true;
   String gameInfoAlliance = "Unknown";
   int gameInfoStation = 0;
   boolean bClimberHooked = false;  
   boolean bClimberAbort = false;
+
   // autonomous variables
   int autoRunCounter = 0;
   int autoEncoderCounter = 0;
-  boolean autoBallShot = false;  
-  // int autoSensorDistanceToShoot = 0;
-  // int autoDistanceToBackupAfterShoot = 0;
-  // double autoBackupTurnAmount = 0;
-  // double autoForwardSpeed = 0;
-  // double autoBackupSpeed = 0;
+  boolean autoBallShot = false; 
 
   /**
    * This function is run when the robot is first started up and should be used for any
@@ -144,6 +136,9 @@ public class Robot extends TimedRobot {
     
     // Turn Compressor on
     c_compressor.enableDigital();
+
+    // Turn Camara on
+    CameraServer.startAutomaticCapture();
   }
 
 
@@ -156,21 +151,15 @@ public class Robot extends TimedRobot {
    */
   @Override
   public void robotPeriodic() {
-    // Get game info
-    gameInfoAlliance = DriverStation.getAlliance().toString();
-    gameInfoStation = DriverStation.getLocation();
-    SmartDashboard.putString("Alliance", gameInfoAlliance);
-    SmartDashboard.putNumber("Station", gameInfoStation);    
     // Encoder Details
     SmartDashboard.putNumber("Encoder Rio Side", enc_RioSide.getDistance());
-    SmartDashboard.putNumber("Encoder Air Side", enc_AirSide.getDistance());
-    // Ultrasonic Sensor  
-    //SmartDashboard.putNumber("Ultrasonic Inches", Math.round(ultrasonicSensorRangeInches*100.0)/100.0);    
+    SmartDashboard.putNumber("Encoder Air Side", enc_AirSide.getDistance());   
     // Drive Helpers
     SmartDashboard.putNumber("xCorrect", xCorrect);
     SmartDashboard.putNumber("speedMultiplier", speedMultiplier); 
     SmartDashboard.putBoolean("Ball Sensor", s_ballSensor.get()); 
     SmartDashboard.putBoolean("Forward Drive", forwardDriveToggle); 
+    SmartDashboard.putBoolean("Intake Status", intakeToggle); 
     SmartDashboard.putNumber("Y", flight.getY());
     SmartDashboard.putNumber("X", flight.getX()); 
     // Climber Helpers
@@ -185,6 +174,8 @@ public class Robot extends TimedRobot {
     // Reset Incoders when Enabled button is clicked.
     enc_AirSide.reset();
     enc_RioSide.reset();
+
+    intakeToggle = true;
   }
 
   /** This function is called periodically during operator control. */
@@ -224,47 +215,47 @@ public class Robot extends TimedRobot {
     }
 
     // ********************************
-    // * SHOOTER
+    // * SHOOTER & INTAKE
     // ********************************
-    if (flight.getRawButton(flight1)) {
-      m_shooter.set(1);
-    }
-    else if (controller.getRawButton(rbButton)) { // controller X button
-      m_shooter.set(1);
-    } 
-    else if (controller.getRawButton(lbButton)) { // reverse balls
-      m_shooter.set(-1);
-    } 
-    else {
-      m_shooter.set(0);
-    }    
-
-    // ********************************
-    // * INTAKE
-    // ********************************    
-    if (controller.getRawButton(yButton)) { // Reverse Dump other team ball
-      m_shooter.set(-1);
-    } 
-      else if (s_ballSensor.get() == true) {
+    if (intakeToggle) { // completely Disable shooter
+      if (flight.getRawButton(flight1)) {
         m_shooter.set(1);
-    }
-    // if (currentBallColor=="Blue" || currentBallColor=="Red") {
-    //   if (currentBallColor != gameInfoAlliance) {
-    //     m_shooter.set(1);
-    //     wait(2000);
-    //     m_shooter.set(0);
-    //   }
-    // }    
+      }
+      else if (controller.getRawButton(rbButton)) { // controller X button
+        m_shooter.set(1);
+      } 
+      else if (controller.getRawButton(lbButton)) { // reverse balls
+        m_shooter.set(-1);
+      } 
+      else {
+        m_shooter.set(0);
+      }    
 
-    // ********************************
-    // * CLIMBER
-    // ********************************
-    // if (controller.getRawButton(aButton) == true) {
-    //   climbPart1();
-    // }    
-    // if (controller.getRawButton(startButton) == true) {
-    //   climbPart2();    
-    // }
+      // INTAKE MANAGEMENT
+      if (controller.getRawButton(yButton)) { // Reverse Dump other team ball
+        m_shooter.set(-1);
+      } 
+        else if (s_ballSensor.get() == true) {
+          m_shooter.set(1);
+      }
+    }
+
+    if (flight.getRawButton(flight3)) { 
+      if (intakeToggle) {
+        intakeToggle = false;
+      }
+      else {
+        intakeToggle= true;
+      }
+      // Prevent double click
+      try { 
+        Thread.sleep(300); 
+      } 
+      catch(InterruptedException ex) {
+        Thread.currentThread().interrupt();
+      }
+    }
+
     if (controller.getRawButton(backButton) == true && controller.getRawButton(startButton) == true) {
       climbPart1();
       climbPart2();
@@ -310,64 +301,17 @@ public class Robot extends TimedRobot {
       solenoidLong.set(DoubleSolenoid.Value.kOff);
     }
 
-    // ********************************
-    // * SENSORS
-    // ********************************
-    // Ultrasonic Sensor
-    // voltageScaleFactor = 5/RobotController.getVoltage5V(); //Calculate what percentage of 5 Volts we are actually at
-    // ultrasonicSensorRangeRaw = ultrasonicSensor.getValue();
-    // ultrasonicSensorRangeInches = ultrasonicSensorRangeRaw * voltageScaleFactor * 0.0492;    
-
   } // END teleopPeriodic
   
   // ********************************
   // * AUTONOMOUS SECTION
-  // ********************************  
-  /**
-   * This autonomous (along with the chooser code above) shows how to select between different
-   * autonomous modes using the dashboard. The sendable chooser code works with the Java
-   * SmartDashboard. If you prefer the LabVIEW Dashboard, remove all of the chooser code and
-   * uncomment the getString line to get the auto name from the text box below the Gyro
-   *
-   * <p>You can add additional auto modes by adding additional comparisons to the switch structure
-   * below with additional strings. If using the SendableChooser make sure to add them to the
-   * chooser code above as well.
-   */
+  // ********************************
   @Override
-  public void autonomousInit() {
-
-    // if (gameInfoStation == 1) { 
-    //   autoBackupTurnAmount = -.14; // back and to RioSide
-    // } 
-    // else if (gameInfoStation == 3) { 
-    //   autoBackupTurnAmount = .14; // back and to Airside
-    // } 
-    // else {
-    //  autoBackupTurnAmount = 0; // straight back
-    //}  
-  }
+  public void autonomousInit() {}
 
   /** This function is called periodically during autonomous. */
   @Override
   public void autonomousPeriodic() {
-    // Ultrasonic Sensor
-    voltageScaleFactor = 5/RobotController.getVoltage5V(); //Calculate what percentage of 5 Volts we are actually at
-    ultrasonicSensorRangeRaw = ultrasonicSensor.getValue();
-    ultrasonicSensorRangeInches = ultrasonicSensorRangeRaw * voltageScaleFactor * 0.0492;   
-
-    // writes start block
-    if ( autoRunCounter==0) { 
-      SmartDashboard.putNumber("Auto Ultrasonic Inches", Math.round(ultrasonicSensorRangeInches*100.0)/100.0);
-      //System.out.println("7454: Autonomous will shoot, reverse, based on " + gameInfoStation + " backupY: " +autoBackupTurnAmount );
-      System.out.println("7454: Autonomous start ultrasonicSensor at " + ultrasonicSensorRangeInches + "inches");
-    }
-
-    // Drive forward until sensor distance is reached
-    // if (autoSensorDistanceToShoot && autoRunCounter==0) {
-    //   System.out.println("7454: Autonomous Rolling ultrasonicSensor at " + ultrasonicSensorRangeInches + "inches");
-    //   m_drive.arcadeDrive(autoForwardSpeed, 0);
-    // }
-
     // Run this code once when distance is reached
     if ( autoRunCounter==0 && !autoBallShot ) {
       // set encoders to 0 first time code is ran
@@ -466,18 +410,12 @@ public class Robot extends TimedRobot {
   public void climbPart3() {
     solenoidMedium.set(DoubleSolenoid.Value.kForward);
     wait(3500); 
-    //solenoidMedium.set(DoubleSolenoid.Value.kOff);
     solenoidLong.set(DoubleSolenoid.Value.kReverse);
-    wait(2500);
-    solenoidLong.set(DoubleSolenoid.Value.kOff);
-    wait(2000);
+    wait(3000);
     solenoidShort.set(DoubleSolenoid.Value.kForward);
-    wait(500);
-    solenoidShort.set(DoubleSolenoid.Value.kOff);
-    wait(800);
+    wait(1300);
     solenoidLong.set(DoubleSolenoid.Value.kForward);
     wait(2000);
-    solenoidLong.set(DoubleSolenoid.Value.kOff);   
     bClimberHooked = false;
   }
 
