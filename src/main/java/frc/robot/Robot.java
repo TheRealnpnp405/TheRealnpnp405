@@ -15,7 +15,9 @@ import edu.wpi.first.wpilibj.TimedRobot;
 import edu.wpi.first.wpilibj.smartdashboard.SmartDashboard;
 import edu.wpi.first.wpilibj.Joystick;
 import edu.wpi.first.wpilibj.motorcontrol.MotorControllerGroup;
-import edu.wpi.first.wpilibj.motorcontrol.Spark; 
+import edu.wpi.first.wpilibj.motorcontrol.Spark;
+import edu.wpi.first.wpilibj.shuffleboard.SendableCameraWrapper;
+import edu.wpi.first.wpilibj.shuffleboard.Shuffleboard;
 import edu.wpi.first.wpilibj.drive.DifferentialDrive;
 import edu.wpi.first.wpilibj.Encoder;
 //import edu.wpi.first.wpilibj.RobotController;  //RoboRIO functions
@@ -26,6 +28,12 @@ import edu.wpi.first.wpilibj.PneumaticsModuleType; // Interfaces to our Pneumati
 import edu.wpi.first.wpilibj.Compressor; // ability to use compressor
 import edu.wpi.first.wpilibj.DoubleSolenoid;
 import edu.wpi.first.cameraserver.CameraServer;
+import edu.wpi.first.cscore.UsbCamera;
+import edu.wpi.first.networktables.NetworkTableEntry;
+import edu.wpi.first.networktables.NetworkTableInstance;
+import subsystems.LidarLite;
+//import edu.wpi.first.wpilibj.Counter;
+
 
 /**
  * The VM is configured to automatically run this class, and to call the functions corresponding to
@@ -62,6 +70,11 @@ public class Robot extends TimedRobot {
   // Flight Other
   private static final int flightPaddle = 3;  
 
+  // CAMERAS
+  UsbCamera shooterCamera;
+  UsbCamera intakeCamera;
+  NetworkTableEntry cameraSelection;  // which camera for dashboard
+
   // DRIVE MOTORS
   // Assign motors to groups, assign groups to Drive
   private final Spark m_frontRioSide = new Spark(0);
@@ -79,21 +92,26 @@ public class Robot extends TimedRobot {
   Encoder enc_AirSide;
 
   //OTHER MOTORS
-  private final Spark m_topShooter = new Spark(4);
-  private final Spark m_bottomShooter = new Spark(5);   
+  private final Spark m_bottomShooter = new Spark(4);   
+  private final Spark m_topShooter = new Spark(5);
   private final Spark m_wheel = new Spark(6);   
   private final MotorControllerGroup m_shooter = new MotorControllerGroup(m_topShooter, m_bottomShooter, m_wheel);
-
 
   // DIGITAL INPUT PORTS
   // DigitalInput(0), DigitalInput(1) are mapped to encoder enc_AirSide
   // DigitalInput(2), DigitalInput(3) are mapped to Encoder enc_RioSide
+  private final DigitalInput s_ballSensor = new DigitalInput(4); // photoelectric
   private final DigitalInput ls_climbAirSide = new DigitalInput(5);
   private final DigitalInput ls_climbRioSide = new DigitalInput(6);
   //private final DigitalInput dio_7 = new DigitalInput(7);
   //private final DigitalInput dio_8 = new DigitalInput(8);
-  private final DigitalInput s_ballSensor = new DigitalInput(9); // photoelectric
+  private final DigitalInput s_LidarInput = new DigitalInput(9);
   
+  // LIDAR
+  private final LidarLite s_LidarLite = new LidarLite(s_LidarInput);
+  int lidarOffset = 43; //CM park against wall and get distance
+  double lidarDistanceInches = 0;
+
   // COMPRESSOR AND PNEUMATICS
   private final Compressor c_compressor = new Compressor(0, PneumaticsModuleType.CTREPCM);
   private final DoubleSolenoid solenoidShort = new DoubleSolenoid(PneumaticsModuleType.CTREPCM,0,1); // Short Extend on PCM 0, Retract on PCM 1
@@ -107,6 +125,7 @@ public class Robot extends TimedRobot {
   int gameInfoStation = 0;
   boolean bClimberHooked = false;  
   boolean bClimberAbort = false;
+  double shooterSpeed = .7;
 
   // autonomous variables
   int autoRunCounter = 0;
@@ -137,8 +156,10 @@ public class Robot extends TimedRobot {
     // Turn Compressor on
     c_compressor.enableDigital();
 
-    // Turn Camara on
-    CameraServer.startAutomaticCapture();
+    // Turn Camaras on
+    shooterCamera = CameraServer.startAutomaticCapture(0);
+    intakeCamera = CameraServer.startAutomaticCapture(1);
+    cameraSelection = NetworkTableInstance.getDefault().getTable("").getEntry("CameraSelection");
   }
 
 
@@ -151,6 +172,7 @@ public class Robot extends TimedRobot {
    */
   @Override
   public void robotPeriodic() {
+    lidarDistanceInches = s_LidarLite.getDistance(lidarOffset) * 0.3937;
     // Encoder Details
     SmartDashboard.putNumber("Encoder Rio Side", enc_RioSide.getDistance());
     SmartDashboard.putNumber("Encoder Air Side", enc_AirSide.getDistance());   
@@ -165,7 +187,15 @@ public class Robot extends TimedRobot {
     // Climber Helpers
     SmartDashboard.putBoolean("LS Airside",  ls_climbAirSide.get()); 
     SmartDashboard.putBoolean("LS RioSide", ls_climbRioSide.get()); 
+    // Sensors
     SmartDashboard.putBoolean("At Pressure", c_compressor.getPressureSwitchValue());
+    //SmartDashboard.putNumber("LiDAR CM", s_LidarLite.getDistance(lidarOffset));
+    SmartDashboard.putNumber("LiDAR IN", lidarDistanceInches);
+    //SmartDashboard.putNumber("LiDAR FT", 0.0328 * distCM);
+    SmartDashboard.putBoolean("Shoot Safe", lidarDistanceInches > 40 ? false : true);
+    SmartDashboard.putNumber("Shoot Speed", this.getShooterSpeeed());
+
+    //Shuffleboard.getTab("SmartDashboard").add("Camera Toggle", SendableCameraWrapper.wrap(shooterCamera..source));
   }
 
   /** This function is called once when teleop is enabled. */
@@ -195,12 +225,14 @@ public class Robot extends TimedRobot {
     if (flight.getRawButton(flight2)) {
       if (forwardDriveToggle==true) {
         forwardDriveToggle=false;
+        cameraSelection.setString(intakeCamera.getName());
         m_AirSide.setInverted(false);
         m_RioSide.setInverted(true);
         xCorrect = Math.abs(xCorrect)*-1;
       }
       else {
         forwardDriveToggle=true;
+        cameraSelection.setString(shooterCamera.getName());
         m_AirSide.setInverted(true);
         m_RioSide.setInverted(false);
         xCorrect = Math.abs(xCorrect);
@@ -219,10 +251,10 @@ public class Robot extends TimedRobot {
     // ********************************
     if (intakeToggle) { // completely Disable shooter
       if (flight.getRawButton(flight1)) {
-        m_shooter.set(1);
+        m_shooter.set(getShooterSpeeed());
       }
       else if (controller.getRawButton(rbButton)) { // controller X button
-        m_shooter.set(1);
+        m_shooter.set(getShooterSpeeed());
       } 
       else if (controller.getRawButton(lbButton)) { // reverse balls
         m_shooter.set(-1);
@@ -236,7 +268,7 @@ public class Robot extends TimedRobot {
         m_shooter.set(-1);
       } 
         else if (s_ballSensor.get() == true) {
-          m_shooter.set(1);
+          m_shooter.set(.7);
       }
     }
 
@@ -417,6 +449,23 @@ public class Robot extends TimedRobot {
     solenoidLong.set(DoubleSolenoid.Value.kForward);
     wait(2000);
     bClimberHooked = false;
+  }
+
+    /**
+     * What to set shooter speed to based on lidar distance.
+     * @return Speed to set Shoot Motors
+     */
+  public double getShooterSpeeed() {
+    double lidarDistance = Math.abs(lidarDistanceInches);
+    double maxShootDistance = 40;
+    double maxMotorSpeed = 1;
+    double minMotorSpeed = .65;
+
+    if (lidarDistance > maxShootDistance) {
+      return 1;
+    }
+    
+    return minMotorSpeed + (lidarDistance/(maxShootDistance/(maxMotorSpeed-minMotorSpeed))); 
   }
 
 
