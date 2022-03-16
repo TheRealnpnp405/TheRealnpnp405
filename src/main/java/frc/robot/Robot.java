@@ -15,7 +15,7 @@ import edu.wpi.first.wpilibj.TimedRobot;
 import edu.wpi.first.wpilibj.smartdashboard.SmartDashboard;
 import edu.wpi.first.wpilibj.Joystick;
 import edu.wpi.first.wpilibj.motorcontrol.MotorControllerGroup;
-import edu.wpi.first.wpilibj.motorcontrol.PWMSparkMax;
+//import edu.wpi.first.wpilibj.motorcontrol.PWMSparkMax;
 import edu.wpi.first.wpilibj.motorcontrol.Spark;
 import edu.wpi.first.wpilibj.drive.DifferentialDrive;
 import edu.wpi.first.wpilibj.Encoder;
@@ -32,9 +32,6 @@ import edu.wpi.first.networktables.NetworkTableEntry;
 import edu.wpi.first.networktables.NetworkTableInstance;
 import subsystems.LidarLite;
 
-import javax.lang.model.util.ElementScanner6;
-
-import com.revrobotics.*;
 //import edu.wpi.first.wpilibj.shuffleboard.SendableCameraWrapper;
 //import edu.wpi.first.wpilibj.shuffleboard.Shuffleboard;
 
@@ -95,7 +92,7 @@ public class Robot extends TimedRobot {
   private final Spark m_topShooter = new Spark(5);
   private final Spark m_wheel = new Spark(6);   
   private final MotorControllerGroup m_shooter = new MotorControllerGroup(m_topShooter, m_bottomShooter, m_wheel);
-  private final PWMSparkMax m_intake = new PWMSparkMax(9);
+  //private final PWMSparkMax m_intake = new PWMSparkMax(9);
 
   // ENCODERS
   Encoder enc_RioSide;
@@ -346,12 +343,11 @@ public class Robot extends TimedRobot {
 
     // TODO Test
     if (controller.getRawButton(xButton)) { 
-      m_intake.set(-.1);
-    else {
-      m_intake.set(0);
+      //DriveStraightWithEncoder(.5, 10);     
     }
-      //DriveStraightWithEncoder(.5, 10); 
-    }    
+    else {
+      //DriveStraightWithEncoder(.5, 10);     
+    }
 
   } // END teleopPeriodic
   
@@ -364,11 +360,11 @@ public class Robot extends TimedRobot {
   /** This function is called periodically during autonomous. */
   @Override
   public void autonomousPeriodic() {
-    if (ls_AutoMode.get() == true){
-      Auto4Points();
-    } 
-    else { 
+    if (ls_AutoMode.get() == false) {
       Auto6Points();
+    } 
+    else {
+      Auto4Points();
     } 
 
 
