@@ -15,16 +15,15 @@ import edu.wpi.first.wpilibj.TimedRobot;
 import edu.wpi.first.wpilibj.smartdashboard.SmartDashboard;
 import edu.wpi.first.wpilibj.Joystick;
 import edu.wpi.first.wpilibj.motorcontrol.MotorControllerGroup;
+import edu.wpi.first.wpilibj.motorcontrol.PWMSparkMax;
 import edu.wpi.first.wpilibj.motorcontrol.Spark;
-import edu.wpi.first.wpilibj.shuffleboard.SendableCameraWrapper;
-import edu.wpi.first.wpilibj.shuffleboard.Shuffleboard;
 import edu.wpi.first.wpilibj.drive.DifferentialDrive;
 import edu.wpi.first.wpilibj.Encoder;
 //import edu.wpi.first.wpilibj.RobotController;  //RoboRIO functions
-//import edu.wpi.first.wpilibj.DriverStation; // ability to get sata from DriverStation
-import edu.wpi.first.wpilibj.DigitalInput; // RoboRIO DIO Ports
+//import edu.wpi.first.wpilibj.DriverStation; // get station info from DriverStation
 //import edu.wpi.first.wpilibj.AnalogInput; // RoboRio ANALOG IN 0-3
-import edu.wpi.first.wpilibj.PneumaticsModuleType; // Interfaces to our Pneumatics Control Module
+import edu.wpi.first.wpilibj.DigitalInput; // RoboRIO DIO Ports
+import edu.wpi.first.wpilibj.PneumaticsModuleType; // Pneumatics Control Module
 import edu.wpi.first.wpilibj.Compressor; // ability to use compressor
 import edu.wpi.first.wpilibj.DoubleSolenoid;
 import edu.wpi.first.cameraserver.CameraServer;
@@ -32,8 +31,12 @@ import edu.wpi.first.cscore.UsbCamera;
 import edu.wpi.first.networktables.NetworkTableEntry;
 import edu.wpi.first.networktables.NetworkTableInstance;
 import subsystems.LidarLite;
-//import edu.wpi.first.wpilibj.Counter;
 
+import javax.lang.model.util.ElementScanner6;
+
+import com.revrobotics.*;
+//import edu.wpi.first.wpilibj.shuffleboard.SendableCameraWrapper;
+//import edu.wpi.first.wpilibj.shuffleboard.Shuffleboard;
 
 /**
  * The VM is configured to automatically run this class, and to call the functions corresponding to
@@ -48,7 +51,7 @@ public class Robot extends TimedRobot {
   // Controller Buttons
   //private static final int aButton = 1;
   //private static final int bButton = 2;
-  //private static final int xButton = 3;  
+  private static final int xButton = 3;  
   private static final int yButton = 4;  
   private static final int lbButton = 5; 
   private static final int rbButton = 6; 
@@ -75,7 +78,7 @@ public class Robot extends TimedRobot {
   UsbCamera intakeCamera;
   NetworkTableEntry cameraSelection;  // which camera for dashboard
 
-  // DRIVE MOTORS
+  // DRIVE MOTORS and DRIVE SETTINGS
   // Assign motors to groups, assign groups to Drive
   private final Spark m_frontRioSide = new Spark(0);
   private final Spark m_rearRioSide = new Spark(1);
@@ -87,15 +90,16 @@ public class Robot extends TimedRobot {
   private double speedMultiplier = 0;
   double xCorrect =.6;  // used to smooth out turning
 
-  // ENCODERS
-  Encoder enc_RioSide;
-  Encoder enc_AirSide;
-
-  //OTHER MOTORS
+  //SHOOTER / INTAKE MOTORS
   private final Spark m_bottomShooter = new Spark(4);   
   private final Spark m_topShooter = new Spark(5);
   private final Spark m_wheel = new Spark(6);   
   private final MotorControllerGroup m_shooter = new MotorControllerGroup(m_topShooter, m_bottomShooter, m_wheel);
+  private final PWMSparkMax m_intake = new PWMSparkMax(9);
+
+  // ENCODERS
+  Encoder enc_RioSide;
+  Encoder enc_AirSide;
 
   // DIGITAL INPUT PORTS
   // DigitalInput(0), DigitalInput(1) are mapped to encoder enc_AirSide
@@ -103,7 +107,7 @@ public class Robot extends TimedRobot {
   private final DigitalInput s_ballSensor = new DigitalInput(4); // photoelectric
   private final DigitalInput ls_climbAirSide = new DigitalInput(5);
   private final DigitalInput ls_climbRioSide = new DigitalInput(6);
-  //private final DigitalInput dio_7 = new DigitalInput(7);
+  private final DigitalInput ls_AutoMode = new DigitalInput(7);
   //private final DigitalInput dio_8 = new DigitalInput(8);
   private final DigitalInput s_LidarInput = new DigitalInput(9);
   
@@ -125,7 +129,13 @@ public class Robot extends TimedRobot {
   int gameInfoStation = 0;
   boolean bClimberHooked = false;  
   boolean bClimberAbort = false;
-  double shooterSpeed = .7;
+  // shooter
+  double shooterMaxDistance = 40;
+  double shooterMaxMotorSpeed = 1;
+  double shooterMinMotorSpeed = .65;
+  // intake
+  double intakeSpeed = .7;
+  double intakeDumpSpeed = -1;
 
   // autonomous variables
   int autoRunCounter = 0;
@@ -194,7 +204,7 @@ public class Robot extends TimedRobot {
     //SmartDashboard.putNumber("LiDAR FT", 0.0328 * distCM);
     SmartDashboard.putBoolean("Shoot Safe", lidarDistanceInches > 40 ? false : true);
     SmartDashboard.putNumber("Shoot Speed", this.getShooterSpeeed());
-
+    SmartDashboard.putBoolean("Auto Switch", ls_AutoMode.get());
     //Shuffleboard.getTab("SmartDashboard").add("Camera Toggle", SendableCameraWrapper.wrap(shooterCamera..source));
   }
 
@@ -265,10 +275,10 @@ public class Robot extends TimedRobot {
 
       // INTAKE MANAGEMENT
       if (controller.getRawButton(yButton)) { // Reverse Dump other team ball
-        m_shooter.set(-1);
+        m_shooter.set(intakeDumpSpeed);
       } 
         else if (s_ballSensor.get() == true) {
-          m_shooter.set(.7);
+          m_shooter.set(intakeSpeed);
       }
     }
 
@@ -333,6 +343,16 @@ public class Robot extends TimedRobot {
       solenoidLong.set(DoubleSolenoid.Value.kOff);
     }
 
+
+    // TODO Test
+    if (controller.getRawButton(xButton)) { 
+      m_intake.set(-.1);
+    else {
+      m_intake.set(0);
+    }
+      //DriveStraightWithEncoder(.5, 10); 
+    }    
+
   } // END teleopPeriodic
   
   // ********************************
@@ -344,35 +364,43 @@ public class Robot extends TimedRobot {
   /** This function is called periodically during autonomous. */
   @Override
   public void autonomousPeriodic() {
-    // Run this code once when distance is reached
-    if ( autoRunCounter==0 && !autoBallShot ) {
-      // set encoders to 0 first time code is ran
-      enc_RioSide.reset();
-      enc_AirSide.reset();   
-
-      // drive forward 3 feet
-      m_drive.arcadeDrive(-.5, 0);
-      wait(3000);
-      m_drive.stopMotor(); // Stop Forward
-      m_shooter.set(1); // shoot
-      wait(1500); // run for a second to make sure clear 
-      m_shooter.set(0); // Stop Shoot
-      autoBallShot = true;
-      enc_RioSide.reset(); // reset encoders
-      enc_AirSide.reset();  
-    }
-    if ( autoRunCounter==0 && autoBallShot ) {
-
-      // drive backwards 7 feet
-      if ((enc_RioSide.getDistance() + enc_AirSide.getDistance())/2 < 7) {
-        m_drive.arcadeDrive(.55, 0);   
-      }
-      else {
-        autoRunCounter++;
-        m_drive.stopMotor();
-        System.out.println("7454: Autonomous complete");
-      } 
+    if (ls_AutoMode.get() == true){
+      Auto4Points();
     } 
+    else { 
+      Auto6Points();
+    } 
+
+
+    // // Run this code once when distance is reached
+    // if ( autoRunCounter==0 && !autoBallShot ) {
+    //   // set encoders to 0 first time code is ran
+    //   enc_RioSide.reset();
+    //   enc_AirSide.reset();   
+
+    //   // drive forward 3 feet
+    //   m_drive.arcadeDrive(-.5, 0);
+    //   wait(3000);
+    //   m_drive.stopMotor(); // Stop Forward
+    //   m_shooter.set(1); // shoot
+    //   wait(1500); // run for a second to make sure clear 
+    //   m_shooter.set(0); // Stop Shoot
+    //   autoBallShot = true;
+    //   enc_RioSide.reset(); // reset encoders
+    //   enc_AirSide.reset();  
+    // }
+    // if ( autoRunCounter==0 && autoBallShot ) {
+
+    //   // drive backwards 7 feet
+    //   if ((enc_RioSide.getDistance() + enc_AirSide.getDistance())/2 < 7) {
+    //     m_drive.arcadeDrive(.55, 0);   
+    //   }
+    //   else {
+    //     autoRunCounter++;
+    //     m_drive.stopMotor();
+    //     System.out.println("7454: Autonomous complete");
+    //   } 
+    // } 
   
   }  // END Autonomous
 
@@ -451,22 +479,115 @@ public class Robot extends TimedRobot {
     bClimberHooked = false;
   }
 
-    /**
-     * What to set shooter speed to based on lidar distance.
-     * @return Speed to set Shoot Motors
-     */
+  /**
+  * What to set shooter speed to based on lidar distance. We set the shooter motors to 100%
+  * to determind shooterMaxDistance. Then we pit against wall to get shooterMinMotorSpeed. 
+  * Formula is the minSpeed + (the current lidar distance/(maxdistance/(max speed-min speed)));
+  * If the distance is farther than the shooterMaxDistance, then motors will run at 100%.
+  * Distance and speed variables are set in globals.
+  * @return Speed to set Shoot Motors
+  */
   public double getShooterSpeeed() {
     double lidarDistance = Math.abs(lidarDistanceInches);
-    double maxShootDistance = 40;
-    double maxMotorSpeed = 1;
-    double minMotorSpeed = .65;
 
-    if (lidarDistance > maxShootDistance) {
+    // too far, set motor speed to 100%
+    if (lidarDistance > shooterMaxDistance) {
       return 1;
     }
-    
-    return minMotorSpeed + (lidarDistance/(maxShootDistance/(maxMotorSpeed-minMotorSpeed))); 
+
+    return shooterMinMotorSpeed + (lidarDistance/(shooterMaxDistance/(shooterMaxMotorSpeed-shooterMinMotorSpeed))); 
   }
+
+//todo fix
+  /**
+   * Forward, shoot, backup
+   * Tarmac is 7 ft 3/4 in (~85 inches)
+   */
+  public void Auto4Points() {
+    if ( autoRunCounter==0 && !autoBallShot ) {
+      // set encoders to 0 first time code is ran
+      enc_RioSide.reset();
+      enc_AirSide.reset();   
+
+      // drive forward
+      m_drive.arcadeDrive(-.55, 0);
+      wait(2500);
+      m_drive.stopMotor(); // Stop Forward
+      m_shooter.set(getShooterSpeeed()); // shoot using LiDAR
+      wait(1500); // run and make sure balls clear 
+      m_shooter.set(0); // stop shooter
+      autoBallShot = true;
+
+      // reset encoders
+      enc_RioSide.reset(); 
+      enc_AirSide.reset();  
+    }
+    if ( autoRunCounter==0 && autoBallShot ) {
+
+      // drive backwards 7 feet based on encoder
+      if ((enc_RioSide.getDistance() + enc_AirSide.getDistance())/2 < 7) {
+        m_drive.arcadeDrive(.6, 0);   
+      }
+      else {
+        autoRunCounter++;
+        m_drive.stopMotor();
+        System.out.println("7454: Autonomous Auto4Points complete");
+      } 
+    } 
+  }
+
+//todo test
+  /**
+   * Back, Pickup, forward, shoot 2, backup
+   * Tarmac is 7 ft 3/4 in (~85 inches)
+   * Cargo will be 40 3/8 inches from tarmac
+   */
+  public void Auto6Points() {
+    // // backup 
+    // m_drive.arcadeDrive(.6, 0);  
+    // // backup cargo will be 40 3/8 inches from edge of tarmac
+    // if (s_ballSensor.get() == true) {
+    //   m_shooter.set(intakeSpeed);
+    //   m_drive.stopMotor();
+    // }
+    // //forward using lidar to about 20 inches
+    // if (Math.abs(lidarDistanceInches) > 20) {
+    //   m_drive.arcadeDrive(-.6, 0);   
+    // }
+    // // shoot using LiDAR
+    // m_shooter.set(getShooterSpeeed());
+    // wait(2500); // run and make sure balls clear 
+    // m_shooter.set(0); // stop shooter
+    // autoBallShot = true;
+
+    // // backup 7.2 feet using lidar
+    // if (Math.abs(lidarDistanceInches) < 7.2*12) {
+    //   m_drive.arcadeDrive(.6, 0);   
+    // }
+    // else {
+    //   autoRunCounter++;
+    //   m_drive.stopMotor();
+    //   System.out.println("7454: Autonomous Auto6Points complete");
+    // }       
+  }    
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
 
 
 
@@ -488,5 +609,33 @@ public class Robot extends TimedRobot {
   public void simulationInit() {}
   @Override
   public void simulationPeriodic() {}  
+
+
+
+
+    // /**
+  //  * Drive Straight using encoders
+  //  * @parm power = Speed to drive
+  //  * @parm distance = how far to drive in feet
+  //  */
+  // public void DriveStraightWithEncoder(double power, double distance) {
+  //   double error = 0;
+  //   double turnPower = .1;
+  //   double motorDirection = Math.signum(power);
+
+  //   m_AirSide.setInverted(false);
+  //   m_RioSide.setInverted(true);
+
+  //   System.out.println("7454: DriveStraightWithEncoder");
+
+  //   while ((enc_RioSide.getDistance() + enc_AirSide.getDistance())/2 < distance) {
+  //     error = enc_RioSide.getDistance() - enc_AirSide.getDistance();
+  //     turnPower = error * motorDirection;
+  //     m_drive.arcadeDrive(power, turnPower);
+  //     System.out.println("ERROR" + error);
+  //     System.out.println("turnPower" + turnPower);
+  //     System.out.println("turnPower" + turnPower);
+  //   }    
+  // }
 
 } // END Robot
