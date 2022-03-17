@@ -104,15 +104,14 @@ public class Robot extends TimedRobot {
   private final DigitalInput s_ballSensor = new DigitalInput(4); // photoelectric
   private final DigitalInput ls_climbAirSide = new DigitalInput(5);
   private final DigitalInput ls_climbRioSide = new DigitalInput(6);
-  private final DigitalInput ls_AutoMode = new DigitalInput(7);
+  private final DigitalInput switchAutoMode = new DigitalInput(7);
   //private final DigitalInput dio_8 = new DigitalInput(8);
   private final DigitalInput s_LidarInput = new DigitalInput(9);
   
   // LIDAR
   private final LidarLite s_LidarLite = new LidarLite(s_LidarInput);
   int lidarOffset = 43; //CM park against wall and get distance
-  double lidarDistanceInches = 0;
-
+ 
   // COMPRESSOR AND PNEUMATICS
   private final Compressor c_compressor = new Compressor(0, PneumaticsModuleType.CTREPCM);
   private final DoubleSolenoid solenoidShort = new DoubleSolenoid(PneumaticsModuleType.CTREPCM,0,1); // Short Extend on PCM 0, Retract on PCM 1
@@ -138,6 +137,7 @@ public class Robot extends TimedRobot {
   int autoRunCounter = 0;
   int autoEncoderCounter = 0;
   boolean autoBallShot = false; 
+  boolean auto6BackCargo = false; 
 
   /**
    * This function is run when the robot is first started up and should be used for any
@@ -179,7 +179,6 @@ public class Robot extends TimedRobot {
    */
   @Override
   public void robotPeriodic() {
-    lidarDistanceInches = s_LidarLite.getDistance(lidarOffset) * 0.3937;
     // Encoder Details
     SmartDashboard.putNumber("Encoder Rio Side", enc_RioSide.getDistance());
     SmartDashboard.putNumber("Encoder Air Side", enc_AirSide.getDistance());   
@@ -197,11 +196,11 @@ public class Robot extends TimedRobot {
     // Sensors
     SmartDashboard.putBoolean("At Pressure", c_compressor.getPressureSwitchValue());
     //SmartDashboard.putNumber("LiDAR CM", s_LidarLite.getDistance(lidarOffset));
-    SmartDashboard.putNumber("LiDAR IN", lidarDistanceInches);
+    SmartDashboard.putNumber("LiDAR IN", s_LidarLite.getDistance(lidarOffset) * 0.3937);
     //SmartDashboard.putNumber("LiDAR FT", 0.0328 * distCM);
-    SmartDashboard.putBoolean("Shoot Safe", lidarDistanceInches > 40 ? false : true);
+    SmartDashboard.putBoolean("Shoot Safe", s_LidarLite.getDistance(lidarOffset) * 0.3937 > 40 ? false : true);
     SmartDashboard.putNumber("Shoot Speed", this.getShooterSpeeed());
-    SmartDashboard.putBoolean("Auto Switch", ls_AutoMode.get());
+    SmartDashboard.putString("Auto Switch", switchAutoMode.get() ? "4 Point" : "6 Point");
     //Shuffleboard.getTab("SmartDashboard").add("Camera Toggle", SendableCameraWrapper.wrap(shooterCamera..source));
   }
 
@@ -340,13 +339,11 @@ public class Robot extends TimedRobot {
       solenoidLong.set(DoubleSolenoid.Value.kOff);
     }
 
+    if (controller.getRawButton(xButton)) {
 
-    // TODO Test
-    if (controller.getRawButton(xButton)) { 
-      //DriveStraightWithEncoder(.5, 10);     
     }
     else {
-      //DriveStraightWithEncoder(.5, 10);     
+
     }
 
   } // END teleopPeriodic
@@ -360,45 +357,144 @@ public class Robot extends TimedRobot {
   /** This function is called periodically during autonomous. */
   @Override
   public void autonomousPeriodic() {
-    if (ls_AutoMode.get() == false) {
-      Auto6Points();
-    } 
-    else {
-      Auto4Points();
-    } 
-
-
-    // // Run this code once when distance is reached
-    // if ( autoRunCounter==0 && !autoBallShot ) {
-    //   // set encoders to 0 first time code is ran
-    //   enc_RioSide.reset();
-    //   enc_AirSide.reset();   
-
-    //   // drive forward 3 feet
-    //   m_drive.arcadeDrive(-.5, 0);
-    //   wait(3000);
-    //   m_drive.stopMotor(); // Stop Forward
-    //   m_shooter.set(1); // shoot
-    //   wait(1500); // run for a second to make sure clear 
-    //   m_shooter.set(0); // Stop Shoot
-    //   autoBallShot = true;
-    //   enc_RioSide.reset(); // reset encoders
-    //   enc_AirSide.reset();  
-    // }
-    // if ( autoRunCounter==0 && autoBallShot ) {
-
-    //   // drive backwards 7 feet
-    //   if ((enc_RioSide.getDistance() + enc_AirSide.getDistance())/2 < 7) {
-    //     m_drive.arcadeDrive(.55, 0);   
-    //   }
-    //   else {
-    //     autoRunCounter++;
-    //     m_drive.stopMotor();
-    //     System.out.println("7454: Autonomous complete");
-    //   } 
-    // } 
   
-  }  // END Autonomous
+// TODO Test
+
+    boolean autodebug = true;
+
+    if (autodebug) {
+      System.out.println("0 autoRunCounter: " + autoRunCounter );
+      System.out.println("0 auto6BackCargo: " + auto6BackCargo );      
+      System.out.println("0 autoBallShot: " + autoBallShot );
+      System.out.println("0 lidarDistanceInches: " + s_LidarLite.getDistance(lidarOffset) * 0.3937 );
+      System.out.println("0 getShooterSpeeed(): " + this.getShooterSpeeed() );
+      System.out.println("0 enc_RioSide.getDistance(): " + enc_RioSide.getDistance());
+      System.out.println("0 enc_AirSide.getDistance(): " + enc_AirSide.getDistance());                    
+      System.out.println("------------------------------------------------------");
+    }
+
+    while(isAutonomous() && isEnabled())  {
+
+      // 6 POINTS
+      if (switchAutoMode.get() == false) {      
+        // 1.  backup cargo will be 40 3/8 inches from edge of tarmac
+        if ( autoRunCounter==0 && !auto6BackCargo) {
+          System.out.println("7454: Auto6Points: Selected");
+          if (!auto6BackCargo) {
+            m_drive.arcadeDrive(.6, 0);  
+            if (s_ballSensor.get() == true) {
+              m_drive.stopMotor();
+              m_shooter.set(intakeSpeed);
+              wait(400);
+              auto6BackCargo = true;
+              System.out.println("7454: Auto6Points: Got Cargo");
+            }         
+          }   
+          if (autodebug) {
+            System.out.println("1 autoRunCounter: " + autoRunCounter );
+            System.out.println("1 auto6BackCargo: " + auto6BackCargo );      
+            System.out.println("1 autoBallShot: " + autoBallShot );
+            System.out.println("1 lidarDistanceInches: " + s_LidarLite.getDistance(lidarOffset) * 0.3937 );
+            System.out.println("1 getShooterSpeeed(): " + this.getShooterSpeeed() );
+            System.out.println("1 enc_RioSide.getDistance(): " + enc_RioSide.getDistance());
+            System.out.println("1 enc_AirSide.getDistance(): " + enc_AirSide.getDistance());                    
+            System.out.println("------------------------------------------------------");
+          }
+          m_shooter.stopMotor();
+          enc_RioSide.reset(); 
+          enc_AirSide.reset();  
+
+          // 2. Forward using LiDAR and shoot.
+          if ( autoRunCounter==0 && !autoBallShot && auto6BackCargo) {
+            if (autodebug) {
+              System.out.println("2 autoRunCounter: " + autoRunCounter );
+              System.out.println("2 auto6BackCargo: " + auto6BackCargo );      
+              System.out.println("2 autoBallShot: " + autoBallShot );
+              System.out.println("2 lidarDistanceInches: " + s_LidarLite.getDistance(lidarOffset) * 0.3937 );
+              System.out.println("2 getShooterSpeeed(): " + this.getShooterSpeeed() );
+              System.out.println("2 enc_RioSide.getDistance(): " + enc_RioSide.getDistance());
+              System.out.println("2 enc_AirSide.getDistance(): " + enc_AirSide.getDistance());                    
+              System.out.println("------------------------------------------------------");
+            }   
+
+            //Encoders
+            //if ((enc_RioSide.getDistance() + enc_AirSide.getDistance())/2 < 8) {
+            // LiDAR up to 24 inches of wall
+            if (s_LidarLite.getDistance(lidarOffset) * 0.3937 > 24) {
+              m_drive.arcadeDrive(-.6, 0);   
+            }
+            else {
+              m_drive.stopMotor(); 
+              m_shooter.set(getShooterSpeeed());
+              wait(2500); // run and make sure balls clear 
+              m_shooter.set(0); // stop shooter
+              autoBallShot = true;
+              System.out.println("7454: Auto6Points: Shot Cargo");
+
+              enc_RioSide.reset(); 
+              enc_AirSide.reset();        
+
+              if (autodebug) {
+                System.out.println("3 autoRunCounter: " + autoRunCounter );
+                System.out.println("3 auto6BackCargo: " + auto6BackCargo );      
+                System.out.println("3 autoBallShot: " + autoBallShot );
+                System.out.println("3 lidarDistanceInches: " + s_LidarLite.getDistance(lidarOffset) * 0.3937 );
+                System.out.println("3 getShooterSpeeed(): " + this.getShooterSpeeed() );
+                System.out.println("3 enc_RioSide.getDistance(): " + enc_RioSide.getDistance());
+                System.out.println("3 enc_AirSide.getDistance(): " + enc_AirSide.getDistance());                    
+                System.out.println("------------------------------------------------------");
+              }               
+
+              //3. Backup using Encoders.  Should be 24 inches, so 5.5 foot more.
+              // if ( autoRunCounter==0 && autoBallShot && auto6BackCargo) {
+              //   if ((enc_RioSide.getDistance() + enc_AirSide.getDistance())/2 < 5.5) {
+              //     m_drive.arcadeDrive(.6, 0);   
+              //   }
+              //   else {
+              autoRunCounter++;
+              m_drive.stopMotor();
+              System.out.println("7454: Auto6Points complete");
+              //   }                   
+              // } 
+            }
+          }
+        }
+      } // 6 POINT SWITCH
+      else {     
+        // 4 POINTS
+        System.out.println("7454: Auto4Points: Selected");
+
+        // 1 . Forward and Shoot
+        if ( autoRunCounter==0 && !autoBallShot ) {
+          // drive forward
+          //m_drive.arcadeDrive(-.55, 0);
+          //wait(1500);
+          //m_drive.stopMotor(); // Stop Forward
+          m_shooter.set(getShooterSpeeed()); // shoot using LiDAR
+          wait(1500); // run and make sure balls clear 
+          m_shooter.set(0); // stop shooter
+          autoBallShot = true;
+    
+          // reset encoders
+          enc_RioSide.reset(); 
+          enc_AirSide.reset();  
+        }
+
+        // 2 . Backup
+        if ( autoRunCounter==0 && autoBallShot ) {
+          // drive backwards 5.2 feet based on encoder
+          if ((enc_RioSide.getDistance() + enc_AirSide.getDistance())/2 < 5.2) {
+            m_drive.arcadeDrive(.6, 0);   
+          }
+          else {
+            autoRunCounter++;
+            m_drive.stopMotor();
+            System.out.println("7454: Auto4Points complete");
+          } 
+        }         
+      } // 4 POINT SWITCH
+    } // END while(isAutonomous() && isEnabled())  {
+  }  // END autonomousPeriodic()
 
 
   // ********************************
@@ -484,7 +580,7 @@ public class Robot extends TimedRobot {
   * @return Speed to set Shoot Motors
   */
   public double getShooterSpeeed() {
-    double lidarDistance = Math.abs(lidarDistanceInches);
+    double lidarDistance = Math.abs(s_LidarLite.getDistance(lidarOffset) * 0.3937);
 
     // too far, set motor speed to 100%
     if (lidarDistance > shooterMaxDistance) {
@@ -494,78 +590,6 @@ public class Robot extends TimedRobot {
     return shooterMinMotorSpeed + (lidarDistance/(shooterMaxDistance/(shooterMaxMotorSpeed-shooterMinMotorSpeed))); 
   }
 
-//todo fix
-  /**
-   * Forward, shoot, backup
-   * Tarmac is 7 ft 3/4 in (~85 inches)
-   */
-  public void Auto4Points() {
-    if ( autoRunCounter==0 && !autoBallShot ) {
-      // set encoders to 0 first time code is ran
-      enc_RioSide.reset();
-      enc_AirSide.reset();   
-
-      // drive forward
-      m_drive.arcadeDrive(-.55, 0);
-      wait(2500);
-      m_drive.stopMotor(); // Stop Forward
-      m_shooter.set(getShooterSpeeed()); // shoot using LiDAR
-      wait(1500); // run and make sure balls clear 
-      m_shooter.set(0); // stop shooter
-      autoBallShot = true;
-
-      // reset encoders
-      enc_RioSide.reset(); 
-      enc_AirSide.reset();  
-    }
-    if ( autoRunCounter==0 && autoBallShot ) {
-
-      // drive backwards 7 feet based on encoder
-      if ((enc_RioSide.getDistance() + enc_AirSide.getDistance())/2 < 7) {
-        m_drive.arcadeDrive(.6, 0);   
-      }
-      else {
-        autoRunCounter++;
-        m_drive.stopMotor();
-        System.out.println("7454: Autonomous Auto4Points complete");
-      } 
-    } 
-  }
-
-//todo test
-  /**
-   * Back, Pickup, forward, shoot 2, backup
-   * Tarmac is 7 ft 3/4 in (~85 inches)
-   * Cargo will be 40 3/8 inches from tarmac
-   */
-  public void Auto6Points() {
-    // // backup 
-    // m_drive.arcadeDrive(.6, 0);  
-    // // backup cargo will be 40 3/8 inches from edge of tarmac
-    // if (s_ballSensor.get() == true) {
-    //   m_shooter.set(intakeSpeed);
-    //   m_drive.stopMotor();
-    // }
-    // //forward using lidar to about 20 inches
-    // if (Math.abs(lidarDistanceInches) > 20) {
-    //   m_drive.arcadeDrive(-.6, 0);   
-    // }
-    // // shoot using LiDAR
-    // m_shooter.set(getShooterSpeeed());
-    // wait(2500); // run and make sure balls clear 
-    // m_shooter.set(0); // stop shooter
-    // autoBallShot = true;
-
-    // // backup 7.2 feet using lidar
-    // if (Math.abs(lidarDistanceInches) < 7.2*12) {
-    //   m_drive.arcadeDrive(.6, 0);   
-    // }
-    // else {
-    //   autoRunCounter++;
-    //   m_drive.stopMotor();
-    //   System.out.println("7454: Autonomous Auto6Points complete");
-    // }       
-  }    
 
 
 
