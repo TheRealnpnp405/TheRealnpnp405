@@ -137,8 +137,8 @@ public class Robot extends TimedRobot {
   boolean bClimberHooked = false;
   boolean bClimberAbort = false;
   // shooter
-  double shooterMaxDistance = 40;
-  double shooterMaxMotorSpeed = 1;
+  double shooterMaxDistance = 24;
+  double shooterMaxMotorSpeed = .65;
   double shooterMinMotorSpeed = .50;
   // intake
   double intakeSpeed = .7;
@@ -275,9 +275,11 @@ public class Robot extends TimedRobot {
     // ********************************
     if (intakeToggle) { // completely Disable shooter
       if (flight.getRawButton(flight1)) {
-        m_shooter.set(getShooterSpeeed());
+       // m_shooter.set(getShooterSpeeed());
+       m_shooter.set(shooterMaxMotorSpeed);
       } else if (controller.getRawButton(rbButton)) { // controller X button
-        m_shooter.set(getShooterSpeeed());
+       // m_shooter.set(getShooterSpeeed());
+       m_shooter.set(shooterMaxMotorSpeed);
       } else if (controller.getRawButton(lbButton)) { // reverse balls
         m_shooter.set(-1);
       } else {
@@ -366,7 +368,7 @@ public class Robot extends TimedRobot {
   @Override
   public void autonomousPeriodic() {
 
-    // TODO Test
+    // TODO Autonomous start
 
     boolean autodebug = false;
 
