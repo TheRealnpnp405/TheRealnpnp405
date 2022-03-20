@@ -19,9 +19,9 @@ import edu.wpi.first.wpilibj.motorcontrol.MotorControllerGroup;
 import edu.wpi.first.wpilibj.motorcontrol.Spark;
 import edu.wpi.first.wpilibj.drive.DifferentialDrive;
 import edu.wpi.first.wpilibj.Encoder;
-//import edu.wpi.first.wpilibj.RobotController;  //RoboRIO functions
+import edu.wpi.first.wpilibj.RobotController;  //RoboRIO functions
 //import edu.wpi.first.wpilibj.DriverStation; // get station info from DriverStation
-//import edu.wpi.first.wpilibj.AnalogInput; // RoboRio ANALOG IN 0-3
+import edu.wpi.first.wpilibj.AnalogInput; // RoboRio ANALOG IN 0-3
 import edu.wpi.first.wpilibj.DigitalInput; // RoboRIO DIO Ports
 import edu.wpi.first.wpilibj.PneumaticsModuleType; // Pneumatics Control Module
 import edu.wpi.first.wpilibj.Compressor; // ability to use compressor
@@ -88,7 +88,7 @@ public class Robot extends TimedRobot {
   private final MotorControllerGroup m_AirSide = new MotorControllerGroup(m_frontAirSide, m_rearAirSide);
   private final DifferentialDrive m_drive = new DifferentialDrive(m_RioSide, m_AirSide);
   private double speedMultiplier = 0;
-  double xCorrect = .6; // used to smooth out turning
+  double xCorrect = .65; // used to smooth out turning
 
   // SHOOTER / INTAKE MOTORS
   private final Spark m_bottomShooter = new Spark(4);
@@ -128,6 +128,13 @@ public class Robot extends TimedRobot {
                                                                                                         // on PCM 4,
                                                                                                         // Retract on
                                                                                                         // PCM 5
+
+  // Ultrasonic
+  public double voltageScaleFactor = 1;
+public AnalogInput ultrasonicSensor = new AnalogInput(0);
+public double ultrasonicSensorRangeRaw = 0;
+public double ultrasonicSensorRangeCentimeters = 0;
+public double ultrasonicSensorRangeInches = 0;
 
   // GLOBAL VARIABLES
   boolean forwardDriveToggle = true;
@@ -221,6 +228,12 @@ public class Robot extends TimedRobot {
     SmartDashboard.putString("Auto Switch", switchAutoMode.get() ? "4 Point" : "6 Point");
     // Shuffleboard.getTab("SmartDashboard").add("Camera Toggle",
     // SendableCameraWrapper.wrap(shooterCamera..source));
+
+    //ultrasonic
+    SmartDashboard.putNumber("voltageScaleFactor", voltageScaleFactor);
+SmartDashboard.putNumber("ultrasonicSensorRangeRaw", ultrasonicSensorRangeRaw);
+SmartDashboard.putNumber("ultrasonicSensorRangeCentimeters", ultrasonicSensorRangeCentimeters);
+SmartDashboard.putNumber("ultrasonicSensorRangeInches", ultrasonicSensorRangeInches);
   }
 
   /** This function is called once when teleop is enabled. */
@@ -236,6 +249,12 @@ public class Robot extends TimedRobot {
   /** This function is called periodically during operator control. */
   @Override
   public void teleopPeriodic() {
+
+    // Ultrasonic
+    voltageScaleFactor = 5/RobotController.getVoltage5V(); //Calculate what percentage of 5 Volts we are actually at
+ultrasonicSensorRangeRaw = ultrasonicSensor.getValue();
+ultrasonicSensorRangeCentimeters = ultrasonicSensorRangeRaw * voltageScaleFactor * 0.125;
+ultrasonicSensorRangeInches = ultrasonicSensorRangeRaw * voltageScaleFactor * 0.0492;
 
     // ********************************
     // * DRIVE CODE
@@ -481,7 +500,8 @@ public class Robot extends TimedRobot {
         // 1 . Shoot
         if (autoRunCounter == 0 && !autoBallShot) {
           //shoot
-          m_shooter.set(getShooterSpeeed()); // shoot using LiDAR
+          //m_shooter.set(getShooterSpeeed()); // shoot using LiDAR
+          m_shooter.set(shooterMaxMotorSpeed+.05);
           wait(1500); // run and make sure balls clear
           m_shooter.set(0); // stop shooter
           autoBallShot = true;
@@ -510,7 +530,7 @@ public class Robot extends TimedRobot {
                 m_drive.arcadeDrive(-.6, 0);
                 wait(2500);
                 m_drive.stopMotor();
-                m_shooter.set(getShooterSpeeed()); // shoot using LiDAR
+                m_shooter.set(shooterMaxMotorSpeed+.05); // shoot using LiDAR
                 wait(1500); // run and make sure balls clear
                 m_shooter.set(0); // stop shooter
                 autoRunCounter++;
@@ -533,7 +553,7 @@ public class Robot extends TimedRobot {
         if (autoRunCounter == 0 && !autoBallShot) {
           //shoot
           m_shooter.set(getShooterSpeeed()); // shoot using LiDAR
-          wait(1500); // run and make sure balls clear
+          wait(1800); // run and make sure balls clear
           m_shooter.set(0); // stop shooter
           autoBallShot = true;
 
@@ -598,13 +618,15 @@ public class Robot extends TimedRobot {
         bClimberHooked = true;
         bClimberAbort = true;
       } else if (ls_climbRioSide.get() && ls_climbAirSide.get()) { // zero touching
-        m_drive.arcadeDrive(-.45, 0);
+        m_drive.arcadeDrive(-.5, 0);
         System.out.println("7454: Climb - no touch");
       } else if (ls_climbRioSide.get() && !ls_climbAirSide.get()) { // AirSide is touching, RioSide is not = turn right
-        m_RioSide.set(-.25);
+        m_RioSide.set(-.45);
+        m_AirSide.set(.35);
         System.out.println("7454: Climb  - Airside touching, Rioside not");
       } else if (!ls_climbRioSide.get() && ls_climbAirSide.get()) { // RioSide is touching, AirSide is not = turn left
-        m_AirSide.set(-.25);
+        m_AirSide.set(-.45);
+        m_RioSide.set(.35);
         System.out.println("7454: Climb  - Airside touching, Rioside not");
       } else if (!ls_climbRioSide.get() && !ls_climbAirSide.get()) { // both touching
         System.out.println("7454: Climb  - Hooked!!!");
