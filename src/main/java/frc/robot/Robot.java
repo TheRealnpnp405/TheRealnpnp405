@@ -343,31 +343,31 @@ ultrasonicSensorRangeInches = ultrasonicSensorRangeRaw * voltageScaleFactor * 0.
     // Small manual
     if (flight.getRawButton(flight7) == true) {
       solenoidShort.set(DoubleSolenoid.Value.kReverse);
-      wait(25);
+      wait(100);
       solenoidShort.set(DoubleSolenoid.Value.kOff);
     } else if (flight.getRawButton(flight8) == true) {
       solenoidShort.set(DoubleSolenoid.Value.kForward);
-      wait(25);
+      wait(100);
       solenoidShort.set(DoubleSolenoid.Value.kOff);
     }
     // Medium manual
     if (flight.getRawButton(flight9) == true) {
       solenoidMedium.set(DoubleSolenoid.Value.kReverse);
-      wait(25);
+      wait(500);
       solenoidMedium.set(DoubleSolenoid.Value.kOff);
     } else if (flight.getRawButton(flight10) == true) {
       solenoidMedium.set(DoubleSolenoid.Value.kForward);
-      wait(25);
+      wait(500);
       solenoidMedium.set(DoubleSolenoid.Value.kOff);
     }
     // Long manual
     if (flight.getRawButton(flight11) == true) {
       solenoidLong.set(DoubleSolenoid.Value.kReverse);
-      wait(25);
+      wait(1000);
       solenoidLong.set(DoubleSolenoid.Value.kOff);
     } else if (flight.getRawButton(flight12) == true) {
       solenoidLong.set(DoubleSolenoid.Value.kForward);
-      wait(25);
+      wait(1000);
       solenoidLong.set(DoubleSolenoid.Value.kOff);
     }
     // flywheel on
@@ -658,16 +658,12 @@ ultrasonicSensorRangeInches = ultrasonicSensorRangeRaw * voltageScaleFactor * 0.
   public void climbPart3() {
     solenoidMedium.set(DoubleSolenoid.Value.kForward);
     wait(3500);
-    solenoidMedium.set(DoubleSolenoid.Value.kOff);
     solenoidLong.set(DoubleSolenoid.Value.kReverse);
     wait(3000);
-    solenoidLong.set(DoubleSolenoid.Value.kOff);
     solenoidShort.set(DoubleSolenoid.Value.kForward);
     wait(1300);
-    solenoidShort.set(DoubleSolenoid.Value.kOff);
     solenoidLong.set(DoubleSolenoid.Value.kForward);
     wait(2000);
-    solenoidLong.set(DoubleSolenoid.Value.kOff);
     bClimberHooked = false;
   }
 
