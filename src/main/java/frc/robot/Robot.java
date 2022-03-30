@@ -30,7 +30,6 @@ import edu.wpi.first.cameraserver.CameraServer;
 import edu.wpi.first.cscore.UsbCamera;
 import edu.wpi.first.networktables.NetworkTableEntry;
 import edu.wpi.first.networktables.NetworkTableInstance;
-import subsystems.LidarLite;
 
 //import edu.wpi.first.wpilibj.shuffleboard.SendableCameraWrapper;
 //import edu.wpi.first.wpilibj.shuffleboard.Shuffleboard;
@@ -108,11 +107,7 @@ public class Robot extends TimedRobot {
   private final DigitalInput ls_climbRioSide = new DigitalInput(6);
   private final DigitalInput switchAutoMode = new DigitalInput(7);
   // private final DigitalInput dio_8 = new DigitalInput(8);
-  private final DigitalInput s_LidarInput = new DigitalInput(9);
-
-  // LIDAR
-  private final LidarLite s_LidarLite = new LidarLite(s_LidarInput);
-  int lidarOffset = 43; // CM park against wall and get distance
+  // private final DigitalInput dio_9 = new DigitalInput(9);
 
   // COMPRESSOR AND PNEUMATICS
   private final Compressor c_compressor = new Compressor(0, PneumaticsModuleType.CTREPCM);
@@ -123,10 +118,7 @@ public class Robot extends TimedRobot {
   // Ultrasonic
   public double voltageScaleFactor = 1;
   public AnalogInput ultrasonicSensor = new AnalogInput(0);
-  public double ultrasonicSensorRangeRaw = 0;
-  public double ultrasonicSensorRangeCentimeters = 0;
-  public double ultrasonicSensorRangeInches = 0;
-  int ultrasonicOffset = 43; // TODO Set this value with bumper on
+  int ultrasonicOffset = 12; // TODO Set this value with bumper on
 
   // GLOBAL VARIABLES
   boolean forwardDriveToggle = true;
@@ -135,14 +127,17 @@ public class Robot extends TimedRobot {
   int gameInfoStation = 0;
   boolean bClimberHooked = false;
   boolean bClimberAbort = false;
+  boolean bUseDistanceSensorToShoot = false;
   // shooter
-  double shooterMaxDistance = 24;
-  double shooterMaxMotorSpeed = .65;
-  double shooterMinMotorSpeed = .50;
+  // TODO Fine tune these distances with ultrasonic on and off.
+  double shooterMaxDistance = 40; // How many inches can we accurately shoot when motors running at 100%?
+  double shooterDefaultMotorSpeed = .65;  // This is our safe average speed.  Will be used if sensors are off.
+  double shooterMaxMotorSpeed = 1;  // Motor top speed to safely shoot
+  double shooterMinMotorSpeed = .50; // Speed to use against wall
+  double shooterSafeShootDistanceInches = 40; // What we use for Shuffleboard visual
   // intake
   double intakeSpeed = .7;
   double intakeDumpSpeed = -1;
-
   // autonomous variables
   int autoRunCounter = 0;
   int autoEncoderCounter = 0;
@@ -203,20 +198,11 @@ public class Robot extends TimedRobot {
     SmartDashboard.putBoolean("LS RioSide", ls_climbRioSide.get());
     // Sensors
     SmartDashboard.putBoolean("At Pressure", c_compressor.getPressureSwitchValue());
-    // SmartDashboard.putNumber("LiDAR CM", s_LidarLite.getDistance(lidarOffset));
-    SmartDashboard.putNumber("LiDAR IN", s_LidarLite.getDistance(lidarOffset) * 0.3937);
-    // SmartDashboard.putNumber("LiDAR FT", 0.0328 * distCM);
-    SmartDashboard.putBoolean("Shoot Safe", s_LidarLite.getDistance(lidarOffset) * 0.3937 > 40 ? false : true);
     SmartDashboard.putNumber("Shoot Speed", this.getShooterSpeeed());
     SmartDashboard.putString("Auto Switch", switchAutoMode.get() ? "4 Point" : "6 Point");
-    // Shuffleboard.getTab("SmartDashboard").add("Camera Toggle",
-    // SendableCameraWrapper.wrap(shooterCamera..source));
-
     //ultrasonic
-    SmartDashboard.putNumber("voltageScaleFactor", voltageScaleFactor);
-    SmartDashboard.putNumber("ultrasonicSensorRangeRaw", ultrasonicSensorRangeRaw);
-    SmartDashboard.putNumber("ultrasonicSensorRangeCentimeters", ultrasonicSensorRangeCentimeters);
-    SmartDashboard.putNumber("ultrasonicSensorRangeInches", ultrasonicSensorRangeInches);
+    SmartDashboard.putNumber("ultrasonicSensorRangeInches", getultrasonicSensorRangeInches());
+    SmartDashboard.putBoolean("Shoot Safe", getultrasonicSensorRangeInches() > shooterSafeShootDistanceInches ? false : true);
   }
 
   /** This function is called once when teleop is enabled. */
@@ -232,18 +218,10 @@ public class Robot extends TimedRobot {
   /** This function is called periodically during operator control. */
   @Override
   public void teleopPeriodic() {
-
-    // Ultrasonic
-    voltageScaleFactor = 5/RobotController.getVoltage5V(); //Calculate what percentage of 5 Volts we are actually at
-    ultrasonicSensorRangeRaw = ultrasonicSensor.getValue();
-    ultrasonicSensorRangeCentimeters = ultrasonicSensorRangeRaw * voltageScaleFactor * 0.125;
-    ultrasonicSensorRangeInches = ultrasonicSensorRangeRaw * voltageScaleFactor * 0.0492;
-
     // ********************************
     // * DRIVE CODE
     // ********************************
-    // Drive with arcade drive. Y axis drives forward and backward, and the X turns
-    // left and right.
+    // Drive with arcade drive. Y axis drives forward and backward, and the X turns left and right.
     // Shooter side is the front of the robot.
 
     speedMultiplier = (((flight.getRawAxis(flightPaddle) * -1) * 0.2) + .6);
@@ -277,15 +255,13 @@ public class Robot extends TimedRobot {
     // ********************************
     if (intakeToggle) { // completely Disable shooter
       if (flight.getRawButton(flight1)) {
-       // mg_Shooter.set(getShooterSpeeed());
-       mg_Shooter.set(shooterMaxMotorSpeed);
+        mg_Shooter.set(getShooterSpeeed());
       } else if (controller.getRawButton(rbButton)) { // controller X button
-       // mg_Shooter.set(getShooterSpeeed());
-       mg_Shooter.set(shooterMaxMotorSpeed);
-      } else if (controller.getRawButton(lbButton)) { // reverse balls
+        mg_Shooter.set(getShooterSpeeed());
+      } else if (controller.getRawButton(lbButton)) { // reverse balls with sensor on
         mg_Shooter.set(-1);
       } else {
-        mg_Shooter.set(0);
+        mg_Shooter.stopMotor();
       }
 
       // INTAKE MANAGEMENT
@@ -376,7 +352,7 @@ public class Robot extends TimedRobot {
       System.out.println("0 autoRunCounter: " + autoRunCounter);
       System.out.println("0 auto6BackCargo: " + auto6BackCargo);
       System.out.println("0 autoBallShot: " + autoBallShot);
-      System.out.println("0 lidarDistanceInches: " + s_LidarLite.getDistance(lidarOffset) * 0.3937);
+      System.out.println("0 getultrasonicSensorRangeInches: " + getultrasonicSensorRangeInches());
       System.out.println("0 getShooterSpeeed(): " + this.getShooterSpeeed());
       System.out.println("0 enc_RioSide.getDistance(): " + enc_RioSide.getDistance());
       System.out.println("0 enc_AirSide.getDistance(): " + enc_AirSide.getDistance());
@@ -389,11 +365,9 @@ public class Robot extends TimedRobot {
       if (switchAutoMode.get() == false) {        
         // 1 . Shoot
         if (autoRunCounter == 0 && !autoBallShot) {
-          //shoot
-          //mg_Shooter.set(getShooterSpeeed()); // shoot using LiDAR
-          mg_Shooter.set(shooterMaxMotorSpeed+.05);
+          mg_Shooter.set(getShooterSpeeed());
           wait(1500); // run and make sure balls clear
-          mg_Shooter.set(0); // stop shooter
+          mg_Shooter.stopMotor();
           autoBallShot = true;
 
           // reset encoders
@@ -420,9 +394,9 @@ public class Robot extends TimedRobot {
                 drive_Main.arcadeDrive(-.6, 0);
                 wait(2500);
                 drive_Main.stopMotor();
-                mg_Shooter.set(shooterMaxMotorSpeed+.05); // shoot using LiDAR
+                mg_Shooter.set(getShooterSpeeed());
                 wait(1500); // run and make sure balls clear
-                mg_Shooter.set(0); // stop shooter
+                mg_Shooter.stopMotor();
                 autoRunCounter++;
                 drive_Main.stopMotor();
                 System.out.println("7454: Auto6Points complete");
@@ -442,9 +416,9 @@ public class Robot extends TimedRobot {
         // 1 . Shoot
         if (autoRunCounter == 0 && !autoBallShot) {
           //shoot
-          mg_Shooter.set(getShooterSpeeed()); // shoot using LiDAR
+          mg_Shooter.set(getShooterSpeeed());
           wait(1800); // run and make sure balls clear
-          mg_Shooter.set(0); // stop shooter
+          mg_Shooter.stopMotor();
           autoBallShot = true;
 
           // reset encoders
@@ -553,15 +527,40 @@ public class Robot extends TimedRobot {
    * @return Speed to set Shoot Motors
    */
   public double getShooterSpeeed() {
-    double lidarDistance = Math.abs(s_LidarLite.getDistance(lidarOffset) * 0.3937);
-
-    // too far, set motor speed to 100%
-    if (lidarDistance > shooterMaxDistance) {
-      return 1;
+    if (bUseDistanceSensorToShoot) {
+      double sensorDistanceInches = getultrasonicSensorRangeInches();
+      
+      if (sensorDistanceInches > shooterMaxDistance) {
+        // too far, set motor speed to 100%
+        return 1;
+      }
+      return shooterMinMotorSpeed + (sensorDistanceInches / (shooterMaxDistance / (shooterMaxMotorSpeed - shooterMinMotorSpeed)));
     }
+    else {
+      // in auto mode without sensor we want a little extra bump to make sure ball makes it.
+      double extraShooterPower = 0;      
+      if (isAutonomous() && isEnabled()) {
+        extraShooterPower = .05;
+      }      
+      return shooterDefaultMotorSpeed + extraShooterPower ;
+    }
+  }
 
-    return shooterMinMotorSpeed
-        + (lidarDistance / (shooterMaxDistance / (shooterMaxMotorSpeed - shooterMinMotorSpeed)));
+  /**
+   * Gets inches 
+   * 
+   * @return distance to 
+   */
+  public double getultrasonicSensorRangeInches() {
+    if (bUseDistanceSensorToShoot) {
+      double dUltrasonicRaw = ultrasonicSensor.getValue();
+      double dVoltage = 5/RobotController.getVoltage5V();
+      double dInchConversion = 0.0492;
+      return ((dUltrasonicRaw * dVoltage) * dInchConversion) - ultrasonicOffset;
+    }
+    else {
+      return -100;
+    }
   }
 
   // ********************************
