@@ -86,16 +86,15 @@ public class Robot extends TimedRobot {
   private final Spark m_frontAirSide = new Spark(2);
   private final Spark m_rearAirSide = new Spark(3);
   private final MotorControllerGroup mg_AirSide = new MotorControllerGroup(m_frontAirSide, m_rearAirSide);
-  private final DifferentialDrive mg_drive = new DifferentialDrive(mg_RioSide, mg_AirSide);
+  private final DifferentialDrive drive_Main = new DifferentialDrive(mg_RioSide, mg_AirSide);
   private double speedMultiplier = 0;
   double xCorrect = .65; // used to smooth out turning
 
   // SHOOTER / INTAKE MOTORS
-  private final Spark m_bottomShooter = new Spark(4);
-  private final Spark m_topShooter = new Spark(5);
-  private final Spark m_wheel = new Spark(6);
-  private final MotorControllerGroup mg_shooter = new MotorControllerGroup(m_topShooter, m_bottomShooter, m_wheel);
-  // private final PWMSparkMax m_intake = new PWMSparkMax(9);
+  private final Spark m_ShooterBottom = new Spark(4);
+  private final Spark m_ShooterTop = new Spark(5);
+  private final Spark m_ShooterMiddle = new Spark(6);
+  private final MotorControllerGroup mg_Shooter = new MotorControllerGroup(m_ShooterTop, m_ShooterBottom, m_ShooterMiddle);
 
   // ENCODERS
   Encoder enc_RioSide;
@@ -117,24 +116,17 @@ public class Robot extends TimedRobot {
 
   // COMPRESSOR AND PNEUMATICS
   private final Compressor c_compressor = new Compressor(0, PneumaticsModuleType.CTREPCM);
-  private final DoubleSolenoid solenoidShort = new DoubleSolenoid(PneumaticsModuleType.CTREPCM, 0, 1); // Short Extend
-                                                                                                       // on PCM 0,
-                                                                                                       // Retract on PCM
-                                                                                                       // 1
-  private final DoubleSolenoid solenoidLong = new DoubleSolenoid(PneumaticsModuleType.CTREPCM, 2, 3); // Long Extend on
-                                                                                                      // PCM 2, Retract
-                                                                                                      // on PCM 3
-  private final DoubleSolenoid solenoidMedium = new DoubleSolenoid(PneumaticsModuleType.CTREPCM, 4, 5); // Medium Extend
-                                                                                                        // on PCM 4,
-                                                                                                        // Retract on
-                                                                                                        // PCM 5
+  private final DoubleSolenoid solenoidShort = new DoubleSolenoid(PneumaticsModuleType.CTREPCM, 0, 1); // Short Extend on PCM 0, Retract on PCM 1
+  private final DoubleSolenoid solenoidLong = new DoubleSolenoid(PneumaticsModuleType.CTREPCM, 2, 3); // Long Extend on PCM 2, Retract on PCM 3
+  private final DoubleSolenoid solenoidMedium = new DoubleSolenoid(PneumaticsModuleType.CTREPCM, 4, 5); // Medium Extend on PCM 4, Retract on PCM 5
 
   // Ultrasonic
   public double voltageScaleFactor = 1;
-public AnalogInput ultrasonicSensor = new AnalogInput(0);
-public double ultrasonicSensorRangeRaw = 0;
-public double ultrasonicSensorRangeCentimeters = 0;
-public double ultrasonicSensorRangeInches = 0;
+  public AnalogInput ultrasonicSensor = new AnalogInput(0);
+  public double ultrasonicSensorRangeRaw = 0;
+  public double ultrasonicSensorRangeCentimeters = 0;
+  public double ultrasonicSensorRangeInches = 0;
+  int ultrasonicOffset = 43; // TODO Set this value with bumper on
 
   // GLOBAL VARIABLES
   boolean forwardDriveToggle = true;
@@ -159,28 +151,24 @@ public double ultrasonicSensorRangeInches = 0;
   boolean autoBallShot2 = false;
 
   /**
-   * This function is run when the robot is first started up and should be used
-   * for any
-   * initialization code.
+   * This function is run when the robot is first started up and should be used for any initialization code.
    */
   @Override
   public void robotInit() {
     // Set reverse motor set as inverted and disable safety check
     mg_AirSide.setInverted(true);
-    mg_drive.setSafetyEnabled(false);
+    drive_Main.setSafetyEnabled(false);
 
     // Init Encoders
     enc_AirSide = new Encoder(1, 0, false, Encoder.EncodingType.k2X);
     enc_RioSide = new Encoder(2, 3, false, Encoder.EncodingType.k2X);
-    enc_AirSide.setDistancePerPulse(Math.PI * 6 / 2625); // distance per pulse is pi* (wheel diameter / counts per
-                                                         // revolution)
-    enc_RioSide.setDistancePerPulse(Math.PI * 6 / 2625); // distance per pulse is pi* (wheel diameter / counts per
-                                                         // revolution)
+    enc_AirSide.setDistancePerPulse(Math.PI * 6 / 2625); // distance per pulse is pi* (wheel diameter / counts per revolution)
+    enc_RioSide.setDistancePerPulse(Math.PI * 6 / 2625); // distance per pulse is pi* (wheel diameter / counts per revolution)
 
     // Invert shooter motors and disable safety check
-    mg_shooter.setInverted(true);
-    m_bottomShooter.setSafetyEnabled(false);
-    m_topShooter.setSafetyEnabled(false);
+    mg_Shooter.setInverted(true);
+    m_ShooterBottom.setSafetyEnabled(false);
+    m_ShooterTop.setSafetyEnabled(false);
 
     // Turn Compressor on
     c_compressor.enableDigital();
@@ -192,15 +180,10 @@ public double ultrasonicSensorRangeInches = 0;
   }
 
   /**
-   * This function is called every robot packet, no matter the mode. Use this for
-   * items like
-   * diagnostics that you want ran during disabled, autonomous, teleoperated and
-   * test.
+   * This function is called every robot packet, no matter the mode. Use this for items like
+   * diagnostics that you want ran during disabled, autonomous, teleoperated and test.
    *
-   * <p>
-   * This runs after the mode specific periodic functions, but before LiveWindow
-   * and
-   * SmartDashboard integrated updating.
+   * This runs after the mode specific periodic functions, but before LiveWindow and SmartDashboard integrated updating.
    */
   @Override
   public void robotPeriodic() {
@@ -231,9 +214,9 @@ public double ultrasonicSensorRangeInches = 0;
 
     //ultrasonic
     SmartDashboard.putNumber("voltageScaleFactor", voltageScaleFactor);
-SmartDashboard.putNumber("ultrasonicSensorRangeRaw", ultrasonicSensorRangeRaw);
-SmartDashboard.putNumber("ultrasonicSensorRangeCentimeters", ultrasonicSensorRangeCentimeters);
-SmartDashboard.putNumber("ultrasonicSensorRangeInches", ultrasonicSensorRangeInches);
+    SmartDashboard.putNumber("ultrasonicSensorRangeRaw", ultrasonicSensorRangeRaw);
+    SmartDashboard.putNumber("ultrasonicSensorRangeCentimeters", ultrasonicSensorRangeCentimeters);
+    SmartDashboard.putNumber("ultrasonicSensorRangeInches", ultrasonicSensorRangeInches);
   }
 
   /** This function is called once when teleop is enabled. */
@@ -252,9 +235,9 @@ SmartDashboard.putNumber("ultrasonicSensorRangeInches", ultrasonicSensorRangeInc
 
     // Ultrasonic
     voltageScaleFactor = 5/RobotController.getVoltage5V(); //Calculate what percentage of 5 Volts we are actually at
-ultrasonicSensorRangeRaw = ultrasonicSensor.getValue();
-ultrasonicSensorRangeCentimeters = ultrasonicSensorRangeRaw * voltageScaleFactor * 0.125;
-ultrasonicSensorRangeInches = ultrasonicSensorRangeRaw * voltageScaleFactor * 0.0492;
+    ultrasonicSensorRangeRaw = ultrasonicSensor.getValue();
+    ultrasonicSensorRangeCentimeters = ultrasonicSensorRangeRaw * voltageScaleFactor * 0.125;
+    ultrasonicSensorRangeInches = ultrasonicSensorRangeRaw * voltageScaleFactor * 0.0492;
 
     // ********************************
     // * DRIVE CODE
@@ -264,7 +247,7 @@ ultrasonicSensorRangeInches = ultrasonicSensorRangeRaw * voltageScaleFactor * 0.
     // Shooter side is the front of the robot.
 
     speedMultiplier = (((flight.getRawAxis(flightPaddle) * -1) * 0.2) + .6);
-    mg_drive.arcadeDrive(flight.getY() * speedMultiplier, flight.getX() * xCorrect);
+    drive_Main.arcadeDrive(flight.getY() * speedMultiplier, flight.getX() * xCorrect);
 
     // Flip Logic
     if (flight.getRawButton(flight2)) {
@@ -294,22 +277,22 @@ ultrasonicSensorRangeInches = ultrasonicSensorRangeRaw * voltageScaleFactor * 0.
     // ********************************
     if (intakeToggle) { // completely Disable shooter
       if (flight.getRawButton(flight1)) {
-       // mg_shooter.set(getShooterSpeeed());
-       mg_shooter.set(shooterMaxMotorSpeed);
+       // mg_Shooter.set(getShooterSpeeed());
+       mg_Shooter.set(shooterMaxMotorSpeed);
       } else if (controller.getRawButton(rbButton)) { // controller X button
-       // mg_shooter.set(getShooterSpeeed());
-       mg_shooter.set(shooterMaxMotorSpeed);
+       // mg_Shooter.set(getShooterSpeeed());
+       mg_Shooter.set(shooterMaxMotorSpeed);
       } else if (controller.getRawButton(lbButton)) { // reverse balls
-        mg_shooter.set(-1);
+        mg_Shooter.set(-1);
       } else {
-        mg_shooter.set(0);
+        mg_Shooter.set(0);
       }
 
       // INTAKE MANAGEMENT
       if (controller.getRawButton(yButton)) { // Reverse Dump other team ball
-        mg_shooter.set(intakeDumpSpeed);
+        mg_Shooter.set(intakeDumpSpeed);
       } else if (s_ballSensor.get() == true) {
-        mg_shooter.set(intakeSpeed);
+        mg_Shooter.set(intakeSpeed);
       }
     }
 
@@ -387,8 +370,6 @@ ultrasonicSensorRangeInches = ultrasonicSensorRangeRaw * voltageScaleFactor * 0.
   @Override
   public void autonomousPeriodic() {
 
-    // TODO Autonomous start
-
     boolean autodebug = false;
 
     if (autodebug) {
@@ -403,107 +384,16 @@ ultrasonicSensorRangeInches = ultrasonicSensorRangeRaw * voltageScaleFactor * 0.
     }
 
     while (isAutonomous() && isEnabled()) {
-      // 6 POINTS
-      // if (switchAutoMode.get() == false) {
-      //   // 1. backup cargo will be 40 3/8 inches from edge of tarmac
-      //   if (autoRunCounter == 0 && !auto6BackCargo) {
-      //     System.out.println("7454: Auto6Points: Selected");
-      //     if (!auto6BackCargo) {
-      //       mg_drive.arcadeDrive(.5, 0);
-      //       if (s_ballSensor.get() == true) {
-      //         mg_drive.stopMotor();
-      //         mg_shooter.set(intakeSpeed);
-      //         wait(400);
-      //         auto6BackCargo = true;
-      //         System.out.println("7454: Auto6Points: Got Cargo");
-      //       }
-      //     }
-      //     if (autodebug) {
-      //       System.out.println("1 autoRunCounter: " + autoRunCounter);
-      //       System.out.println("1 auto6BackCargo: " + auto6BackCargo);
-      //       System.out.println("1 autoBallShot: " + autoBallShot);
-      //       System.out.println("1 lidarDistanceInches: " + s_LidarLite.getDistance(lidarOffset) * 0.3937);
-      //       System.out.println("1 getShooterSpeeed(): " + this.getShooterSpeeed());
-      //       System.out.println("1 enc_RioSide.getDistance(): " + enc_RioSide.getDistance());
-      //       System.out.println("1 enc_AirSide.getDistance(): " + enc_AirSide.getDistance());
-      //       System.out.println("------------------------------------------------------");
-      //     }
-      //     mg_shooter.stopMotor();
-      //     enc_RioSide.reset();
-      //     enc_AirSide.reset();
-
-      //     // 2. Forward using LiDAR and shoot.
-      //     if (autoRunCounter == 0 && !autoBallShot && auto6BackCargo) {
-      //       if (autodebug) {
-      //         System.out.println("2 autoRunCounter: " + autoRunCounter);
-      //         System.out.println("2 auto6BackCargo: " + auto6BackCargo);
-      //         System.out.println("2 autoBallShot: " + autoBallShot);
-      //         System.out.println("2 lidarDistanceInches: " + s_LidarLite.getDistance(lidarOffset) * 0.3937);
-      //         System.out.println("2 getShooterSpeeed(): " + this.getShooterSpeeed());
-      //         System.out.println("2 enc_RioSide.getDistance(): " + enc_RioSide.getDistance());
-      //         System.out.println("2 enc_AirSide.getDistance(): " + enc_AirSide.getDistance());
-      //         System.out.println("------------------------------------------------------");
-      //       }
-
-      //       // Encoders
-      //       // if ((enc_RioSide.getDistance() + enc_AirSide.getDistance())/2 < 8) {
-      //       // LiDAR up to 24 inches of wall
-
-      //       System.out.println("0 enc_RioSide.getDistance(): " + enc_RioSide.getDistance());
-      //       System.out.println("0 enc_AirSide.getDistance(): " + enc_AirSide.getDistance());
-      //       System.out.println("0 lidarDistanceInches: " + s_LidarLite.getDistance(lidarOffset) * 0.3937);
-      //       System.out.println("------------------------------------------------------");
-      //       // if (s_LidarLite.getDistance(lidarOffset) * 0.3937 > 24) {
-      //       if (Math.abs((enc_RioSide.getDistance() + enc_AirSide.getDistance()) / 2) < 5.5) {
-      //         mg_drive.arcadeDrive(-.55, 0);
-      //         System.out.println("1 enc_RioSide.getDistance(): " + enc_RioSide.getDistance());
-      //         System.out.println("1 enc_AirSide.getDistance(): " + enc_AirSide.getDistance());
-      //         System.out.println("1 lidarDistanceInches: " + s_LidarLite.getDistance(lidarOffset) * 0.3937);
-      //         System.out.println("------------------------------------------------------");
-      //       } else {
-      //         mg_drive.stopMotor();
-      //         mg_shooter.set(getShooterSpeeed());
-      //         wait(2500); // run and make sure balls clear
-      //         mg_shooter.set(0); // stop shooter
-      //         autoBallShot = true;
-      //         System.out.println("7454: Auto6Points: Shot Cargo");
-
-      //         enc_RioSide.reset();
-      //         enc_AirSide.reset();
-
-      //         if (autodebug) {
-      //           System.out.println("3 autoRunCounter: " + autoRunCounter);
-      //           System.out.println("3 auto6BackCargo: " + auto6BackCargo);
-      //           System.out.println("3 autoBallShot: " + autoBallShot);
-      //           System.out.println("3 lidarDistanceInches: " + s_LidarLite.getDistance(lidarOffset) * 0.3937);
-      //           System.out.println("3 getShooterSpeeed(): " + this.getShooterSpeeed());
-      //           System.out.println("3 enc_RioSide.getDistance(): " + enc_RioSide.getDistance());
-      //           System.out.println("3 enc_AirSide.getDistance(): " + enc_AirSide.getDistance());
-      //           System.out.println("------------------------------------------------------");
-      //         }
-
-      //         // 3. Backup using Encoders. Should be 24 inches, so 5.5 foot more.
-      //         if (autoRunCounter == 0 && autoBallShot && auto6BackCargo) {
-      //           if ((enc_RioSide.getDistance() + enc_AirSide.getDistance()) / 2 < 5.5) {
-      //             mg_drive.arcadeDrive(.6, 0);
-      //           } else {
-      //             autoRunCounter++;
-      //             mg_drive.stopMotor();
-      //             System.out.println("7454: Auto6Points complete");
-      //           }
-      //         }
-      //       }
-      //     }
-      //   }
-       // 6 POINT SWITCH
+      
+      // 6 POINT SWITCH
       if (switchAutoMode.get() == false) {        
         // 1 . Shoot
         if (autoRunCounter == 0 && !autoBallShot) {
           //shoot
-          //mg_shooter.set(getShooterSpeeed()); // shoot using LiDAR
-          mg_shooter.set(shooterMaxMotorSpeed+.05);
+          //mg_Shooter.set(getShooterSpeeed()); // shoot using LiDAR
+          mg_Shooter.set(shooterMaxMotorSpeed+.05);
           wait(1500); // run and make sure balls clear
-          mg_shooter.set(0); // stop shooter
+          mg_Shooter.set(0); // stop shooter
           autoBallShot = true;
 
           // reset encoders
@@ -517,34 +407,34 @@ ultrasonicSensorRangeInches = ultrasonicSensorRangeRaw * voltageScaleFactor * 0.
           if ((enc_RioSide.getDistance() + enc_AirSide.getDistance()) / 2 < 8) {
             if(!auto6BackCargo)
             {
-              mg_drive.arcadeDrive(.6, 0);
+              drive_Main.arcadeDrive(.6, 0);
             }
             if (s_ballSensor.get() == true) {
-              mg_drive.stopMotor();
-              mg_shooter.set(intakeSpeed);
+              drive_Main.stopMotor();
+              mg_Shooter.set(intakeSpeed);
               wait(400);
-              mg_shooter.stopMotor();
+              mg_Shooter.stopMotor();
               auto6BackCargo = true;
               System.out.println("7454: Auto6Points: Got Cargo");
               // drive forward
-                mg_drive.arcadeDrive(-.6, 0);
+                drive_Main.arcadeDrive(-.6, 0);
                 wait(2500);
-                mg_drive.stopMotor();
-                mg_shooter.set(shooterMaxMotorSpeed+.05); // shoot using LiDAR
+                drive_Main.stopMotor();
+                mg_Shooter.set(shooterMaxMotorSpeed+.05); // shoot using LiDAR
                 wait(1500); // run and make sure balls clear
-                mg_shooter.set(0); // stop shooter
+                mg_Shooter.set(0); // stop shooter
                 autoRunCounter++;
-                mg_drive.stopMotor();
+                drive_Main.stopMotor();
                 System.out.println("7454: Auto6Points complete");
               
             }
           } else {
             autoRunCounter++;
-            mg_drive.stopMotor();
+            drive_Main.stopMotor();
             System.out.println("7454: Auto6Points complete ball not found");
           }
         }  
-      }    
+      } // END 6 POINT SWITCH   
       else {
         // 4 POINTS
         System.out.println("7454: Auto4Points: Selected");
@@ -552,9 +442,9 @@ ultrasonicSensorRangeInches = ultrasonicSensorRangeRaw * voltageScaleFactor * 0.
         // 1 . Shoot
         if (autoRunCounter == 0 && !autoBallShot) {
           //shoot
-          mg_shooter.set(getShooterSpeeed()); // shoot using LiDAR
+          mg_Shooter.set(getShooterSpeeed()); // shoot using LiDAR
           wait(1800); // run and make sure balls clear
-          mg_shooter.set(0); // stop shooter
+          mg_Shooter.set(0); // stop shooter
           autoBallShot = true;
 
           // reset encoders
@@ -566,10 +456,10 @@ ultrasonicSensorRangeInches = ultrasonicSensorRangeRaw * voltageScaleFactor * 0.
         if (autoRunCounter == 0 && autoBallShot) {
           // drive backwards 5.2 feet based on encoder
           if ((enc_RioSide.getDistance() + enc_AirSide.getDistance()) / 2 < 5.2) {
-            mg_drive.arcadeDrive(.6, 0);
+            drive_Main.arcadeDrive(.6, 0);
           } else {
             autoRunCounter++;
-            mg_drive.stopMotor();
+            drive_Main.stopMotor();
             System.out.println("7454: Auto4Points complete");
           }
         }
@@ -614,11 +504,11 @@ ultrasonicSensorRangeInches = ultrasonicSensorRangeRaw * voltageScaleFactor * 0.
     while (!bClimberHooked) {
       if (flight.getRawButton(flight4) == true) { // abort climb
         System.out.println("7454: Climb  - Abort.");
-        mg_drive.stopMotor();
+        drive_Main.stopMotor();
         bClimberHooked = true;
         bClimberAbort = true;
       } else if (ls_climbRioSide.get() && ls_climbAirSide.get()) { // zero touching
-        mg_drive.arcadeDrive(-.5, 0);
+        drive_Main.arcadeDrive(-.5, 0);
         System.out.println("7454: Climb - no touch");
       } else if (ls_climbRioSide.get() && !ls_climbAirSide.get()) { // AirSide is touching, RioSide is not = turn right
         mg_RioSide.set(-.45);
@@ -630,7 +520,7 @@ ultrasonicSensorRangeInches = ultrasonicSensorRangeRaw * voltageScaleFactor * 0.
         System.out.println("7454: Climb  - Airside touching, Rioside not");
       } else if (!ls_climbRioSide.get() && !ls_climbAirSide.get()) { // both touching
         System.out.println("7454: Climb  - Hooked!!!");
-        mg_drive.stopMotor();
+        drive_Main.stopMotor();
         bClimberHooked = true;
       }
     }
@@ -654,14 +544,10 @@ ultrasonicSensorRangeInches = ultrasonicSensorRangeRaw * voltageScaleFactor * 0.
   }
 
   /**
-   * What to set shooter speed to based on lidar distance. We set the shooter
-   * motors to 100%
-   * to determind shooterMaxDistance. Then we pit against wall to get
-   * shooterMinMotorSpeed.
-   * Formula is the minSpeed + (the current lidar distance/(maxdistance/(max
-   * speed-min speed)));
-   * If the distance is farther than the shooterMaxDistance, then motors will run
-   * at 100%.
+   * What to set shooter speed to based on lidar distance. We set the shooter motors to 100%
+   * to determind shooterMaxDistance. Then we pit against wall to get shooterMinMotorSpeed.
+   * Formula is the minSpeed + (the current lidar distance/(maxdistance/(max speed-min speed)));
+   * If the distance is farther than the shooterMaxDistance, then motors will run at 100%.
    * Distance and speed variables are set in globals.
    * 
    * @return Speed to set Shoot Motors
@@ -727,7 +613,7 @@ ultrasonicSensorRangeInches = ultrasonicSensorRangeRaw * voltageScaleFactor * 0.
   // {
   // error = enc_RioSide.getDistance() - enc_AirSide.getDistance();
   // turnPower = error * motorDirection;
-  // mg_drive.arcadeDrive(power, turnPower);
+  // drive_Main.arcadeDrive(power, turnPower);
   // System.out.println("ERROR" + error);
   // System.out.println("turnPower" + turnPower);
   // System.out.println("turnPower" + turnPower);
