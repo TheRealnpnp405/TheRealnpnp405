@@ -49,8 +49,8 @@ public class Robot extends TimedRobot {
   private final Joystick flight = new Joystick(0);
   private final Joystick controller = new Joystick(1);
   // Controller Buttons
-  private static final int aButton = 1;
-  private static final int bButton = 2;
+  // private static final int aButton = 1;
+  // private static final int bButton = 2;
   private static final int xButton = 3;
   private static final int yButton = 4;
   private static final int lbButton = 5;
@@ -91,10 +91,10 @@ public class Robot extends TimedRobot {
   double xCorrect = .65; // used to smooth out turning
 
   // SHOOTER / INTAKE MOTORS
-  private final Spark m_sorter = new Spark(4);
-  private final Spark m_shooter = new Spark(5);
+  private final Spark m_bottomShooter = new Spark(4);
+  private final Spark m_topShooter = new Spark(5);
   private final Spark m_wheel = new Spark(6);
-  private final MotorControllerGroup mg_sorter = new MotorControllerGroup(m_sorter, m_wheel);
+  private final MotorControllerGroup mg_shooter = new MotorControllerGroup(m_topShooter, m_bottomShooter, m_wheel);
   // private final PWMSparkMax m_intake = new PWMSparkMax(9);
 
   // ENCODERS
@@ -137,7 +137,6 @@ public double ultrasonicSensorRangeCentimeters = 0;
 public double ultrasonicSensorRangeInches = 0;
 
   // GLOBAL VARIABLES
-  double AutoShooterAdj = 0;
   boolean forwardDriveToggle = true;
   boolean intakeToggle = true;
   String gameInfoAlliance = "Unknown";
@@ -146,9 +145,8 @@ public double ultrasonicSensorRangeInches = 0;
   boolean bClimberAbort = false;
   // shooter
   double shooterMaxDistance = 24;
-  double shooterMaxMotorSpeed = 1;
+  double shooterMaxMotorSpeed = .65;
   double shooterMinMotorSpeed = .50;
-  double shooterBottomHubSpeed = .75;
   // intake
   double intakeSpeed = .7;
   double intakeDumpSpeed = -1;
@@ -180,10 +178,9 @@ public double ultrasonicSensorRangeInches = 0;
                                                          // revolution)
 
     // Invert shooter motors and disable safety check
-    mg_sorter.setInverted(true);
-    m_shooter.setInverted(true);
-    m_sorter.setSafetyEnabled(false);
-    m_shooter.setSafetyEnabled(false);
+    mg_shooter.setInverted(true);
+    m_bottomShooter.setSafetyEnabled(false);
+    m_topShooter.setSafetyEnabled(false);
 
     // Turn Compressor on
     c_compressor.enableDigital();
@@ -297,22 +294,22 @@ ultrasonicSensorRangeInches = ultrasonicSensorRangeRaw * voltageScaleFactor * 0.
     // ********************************
     if (intakeToggle) { // completely Disable shooter
       if (flight.getRawButton(flight1)) {
-       // mg_sorter.set(getShooterSpeeed());
-       mg_sorter.set(intakeSpeed);
+       // mg_shooter.set(getShooterSpeeed());
+       mg_shooter.set(shooterMaxMotorSpeed);
       } else if (controller.getRawButton(rbButton)) { // controller X button
-       // mg_sorter.set(getShooterSpeeed());
-       mg_sorter.set(intakeSpeed);
+       // mg_shooter.set(getShooterSpeeed());
+       mg_shooter.set(shooterMaxMotorSpeed);
       } else if (controller.getRawButton(lbButton)) { // reverse balls
-        mg_sorter.set(-1);
+        mg_shooter.set(-1);
       } else {
-        mg_sorter.set(0);
+        mg_shooter.set(0);
       }
 
       // INTAKE MANAGEMENT
       if (controller.getRawButton(yButton)) { // Reverse Dump other team ball
-        mg_sorter.set(intakeDumpSpeed);
+        mg_shooter.set(intakeDumpSpeed);
       } else if (s_ballSensor.get() == true) {
-        mg_sorter.set(intakeSpeed);
+        mg_shooter.set(intakeSpeed);
       }
     }
 
@@ -343,50 +340,38 @@ ultrasonicSensorRangeInches = ultrasonicSensorRangeRaw * voltageScaleFactor * 0.
     // Small manual
     if (flight.getRawButton(flight7) == true) {
       solenoidShort.set(DoubleSolenoid.Value.kReverse);
-      wait(100);
+      wait(25);
       solenoidShort.set(DoubleSolenoid.Value.kOff);
     } else if (flight.getRawButton(flight8) == true) {
       solenoidShort.set(DoubleSolenoid.Value.kForward);
-      wait(100);
+      wait(25);
       solenoidShort.set(DoubleSolenoid.Value.kOff);
     }
     // Medium manual
     if (flight.getRawButton(flight9) == true) {
       solenoidMedium.set(DoubleSolenoid.Value.kReverse);
-      wait(500);
+      wait(25);
       solenoidMedium.set(DoubleSolenoid.Value.kOff);
     } else if (flight.getRawButton(flight10) == true) {
       solenoidMedium.set(DoubleSolenoid.Value.kForward);
-      wait(500);
+      wait(25);
       solenoidMedium.set(DoubleSolenoid.Value.kOff);
     }
     // Long manual
     if (flight.getRawButton(flight11) == true) {
       solenoidLong.set(DoubleSolenoid.Value.kReverse);
-      wait(1000);
+      wait(25);
       solenoidLong.set(DoubleSolenoid.Value.kOff);
     } else if (flight.getRawButton(flight12) == true) {
       solenoidLong.set(DoubleSolenoid.Value.kForward);
-      wait(1000);
+      wait(25);
       solenoidLong.set(DoubleSolenoid.Value.kOff);
-    }
-    // flywheel on
-    if (controller.getRawButton(aButton)) {
-      m_shooter.set(shooterMaxMotorSpeed);  // turn fly wheel on
-    } else {
-      // nothing
-    }
-    //flywheel off
-    if (controller.getRawButton(bButton)) {
-      m_shooter.set(0);  // turn fly wheel off
-    } else {
-      // nothing
     }
 
     if (controller.getRawButton(xButton)) {
-      m_shooter.set(shooterBottomHubSpeed);  // turn fly wheel on for bottom hub
+
     } else {
-      // nothing
+
     }
 
   } // END teleopPeriodic
@@ -427,7 +412,7 @@ ultrasonicSensorRangeInches = ultrasonicSensorRangeRaw * voltageScaleFactor * 0.
       //       mg_drive.arcadeDrive(.5, 0);
       //       if (s_ballSensor.get() == true) {
       //         mg_drive.stopMotor();
-      //         mg_sorter.set(intakeSpeed);
+      //         mg_shooter.set(intakeSpeed);
       //         wait(400);
       //         auto6BackCargo = true;
       //         System.out.println("7454: Auto6Points: Got Cargo");
@@ -443,7 +428,7 @@ ultrasonicSensorRangeInches = ultrasonicSensorRangeRaw * voltageScaleFactor * 0.
       //       System.out.println("1 enc_AirSide.getDistance(): " + enc_AirSide.getDistance());
       //       System.out.println("------------------------------------------------------");
       //     }
-      //     mg_sorter.stopMotor();
+      //     mg_shooter.stopMotor();
       //     enc_RioSide.reset();
       //     enc_AirSide.reset();
 
@@ -477,9 +462,9 @@ ultrasonicSensorRangeInches = ultrasonicSensorRangeRaw * voltageScaleFactor * 0.
       //         System.out.println("------------------------------------------------------");
       //       } else {
       //         mg_drive.stopMotor();
-      //         mg_sorter.set(getShooterSpeeed());
+      //         mg_shooter.set(getShooterSpeeed());
       //         wait(2500); // run and make sure balls clear
-      //         mg_sorter.set(0); // stop shooter
+      //         mg_shooter.set(0); // stop shooter
       //         autoBallShot = true;
       //         System.out.println("7454: Auto6Points: Shot Cargo");
 
@@ -515,11 +500,10 @@ ultrasonicSensorRangeInches = ultrasonicSensorRangeRaw * voltageScaleFactor * 0.
         // 1 . Shoot
         if (autoRunCounter == 0 && !autoBallShot) {
           //shoot
-          //mg_sorter.set(getShooterSpeeed()); // shoot using LiDAR
-          mg_sorter.set(intakeSpeed);
-          m_shooter.set(shooterMaxMotorSpeed + AutoShooterAdj);
+          //mg_shooter.set(getShooterSpeeed()); // shoot using LiDAR
+          mg_shooter.set(shooterMaxMotorSpeed+.05);
           wait(1500); // run and make sure balls clear
-          mg_sorter.set(0); // stop shooter
+          mg_shooter.set(0); // stop shooter
           autoBallShot = true;
 
           // reset encoders
@@ -537,19 +521,18 @@ ultrasonicSensorRangeInches = ultrasonicSensorRangeRaw * voltageScaleFactor * 0.
             }
             if (s_ballSensor.get() == true) {
               mg_drive.stopMotor();
-              mg_sorter.set(intakeSpeed);
+              mg_shooter.set(intakeSpeed);
               wait(400);
-              mg_sorter.stopMotor();
+              mg_shooter.stopMotor();
               auto6BackCargo = true;
               System.out.println("7454: Auto6Points: Got Cargo");
               // drive forward
                 mg_drive.arcadeDrive(-.6, 0);
                 wait(2500);
                 mg_drive.stopMotor();
-                mg_sorter.set(intakeSpeed);
-                m_shooter.set(shooterMaxMotorSpeed + AutoShooterAdj); // shoot using LiDAR
+                mg_shooter.set(shooterMaxMotorSpeed+.05); // shoot using LiDAR
                 wait(1500); // run and make sure balls clear
-                mg_sorter.set(0); // stop shooter
+                mg_shooter.set(0); // stop shooter
                 autoRunCounter++;
                 mg_drive.stopMotor();
                 System.out.println("7454: Auto6Points complete");
@@ -569,10 +552,9 @@ ultrasonicSensorRangeInches = ultrasonicSensorRangeRaw * voltageScaleFactor * 0.
         // 1 . Shoot
         if (autoRunCounter == 0 && !autoBallShot) {
           //shoot
-          mg_sorter.set(intakeSpeed);
-          m_shooter.set(getShooterSpeeed()); // shoot using LiDAR
+          mg_shooter.set(getShooterSpeeed()); // shoot using LiDAR
           wait(1800); // run and make sure balls clear
-          mg_sorter.set(0); // stop shooter
+          mg_shooter.set(0); // stop shooter
           autoBallShot = true;
 
           // reset encoders
@@ -658,12 +640,16 @@ ultrasonicSensorRangeInches = ultrasonicSensorRangeRaw * voltageScaleFactor * 0.
   public void climbPart3() {
     solenoidMedium.set(DoubleSolenoid.Value.kForward);
     wait(3500);
+    solenoidMedium.set(DoubleSolenoid.Value.kOff);
     solenoidLong.set(DoubleSolenoid.Value.kReverse);
     wait(3000);
+    solenoidLong.set(DoubleSolenoid.Value.kOff);
     solenoidShort.set(DoubleSolenoid.Value.kForward);
     wait(1300);
+    solenoidShort.set(DoubleSolenoid.Value.kOff);
     solenoidLong.set(DoubleSolenoid.Value.kForward);
     wait(2000);
+    solenoidLong.set(DoubleSolenoid.Value.kOff);
     bClimberHooked = false;
   }
 
