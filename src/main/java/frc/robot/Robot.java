@@ -118,7 +118,7 @@ public class Robot extends TimedRobot {
   // Ultrasonic
   public double voltageScaleFactor = 1;
   public AnalogInput ultrasonicSensor = new AnalogInput(0);
-  int ultrasonicOffset = 12; // TODO Set this value with bumper on
+  int ultrasonicOffset = 13; // TODO Set this value with bumper on
 
   // GLOBAL VARIABLES
   boolean forwardDriveToggle = true;
@@ -127,7 +127,7 @@ public class Robot extends TimedRobot {
   int gameInfoStation = 0;
   boolean bClimberHooked = false;
   boolean bClimberAbort = false;
-  boolean bUseDistanceSensorToShoot = false;
+  boolean bUseDistanceSensorToShoot = true;
   // shooter
   // TODO Fine tune these distances with ultrasonic on and off.
   double shooterMaxDistance = 40; // How many inches can we accurately shoot when motors running at 100%?
@@ -136,7 +136,7 @@ public class Robot extends TimedRobot {
   double shooterMinMotorSpeed = .50; // Speed to use against wall
   double shooterSafeShootDistanceInches = 40; // What we use for Shuffleboard visual
   // intake
-  double intakeSpeed = .7;
+  double intakeSpeed = .6;
   double intakeDumpSpeed = -1;
   // autonomous variables
   int autoRunCounter = 0;
@@ -559,7 +559,7 @@ public class Robot extends TimedRobot {
       return ((dUltrasonicRaw * dVoltage) * dInchConversion) - ultrasonicOffset;
     }
     else {
-      return -100;
+      return 999;
     }
   }
 
