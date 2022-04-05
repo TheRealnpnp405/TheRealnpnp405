@@ -95,6 +95,7 @@ public class Robot extends TimedRobot {
   private final Spark m_ShooterTop = new Spark(5);
   private final Spark m_ShooterMiddle = new Spark(6);
   private final MotorControllerGroup mg_Shooter = new MotorControllerGroup(m_ShooterTop, m_ShooterBottom, m_ShooterMiddle);
+  private final MotorControllerGroup mg_Intake = new MotorControllerGroup(m_ShooterTop, m_ShooterBottom);
 
   // ENCODERS
   Encoder enc_RioSide;
@@ -163,8 +164,10 @@ public class Robot extends TimedRobot {
 
     // Invert shooter motors and disable safety check
     mg_Shooter.setInverted(true);
+    mg_Intake.setInverted(true);
     m_ShooterBottom.setSafetyEnabled(false);
     m_ShooterTop.setSafetyEnabled(false);
+    m_ShooterMiddle.setSafetyEnabled(false);
 
     // Turn Compressor on
     c_compressor.enableDigital();
@@ -271,7 +274,7 @@ public class Robot extends TimedRobot {
       if (controller.getRawButton(yButton)) { // Reverse Dump other team ball
         mg_Shooter.set(intakeDumpSpeed);
       } else if (s_ballSensor.get() == true) {
-        mg_Shooter.set(intakeSpeed);
+        mg_Intake.set(intakeSpeed);
       }
     }
 
@@ -388,7 +391,7 @@ public class Robot extends TimedRobot {
             }
             if (s_ballSensor.get() == true) {
               drive_Main.stopMotor();
-              mg_Shooter.set(intakeSpeed);
+              mg_Intake.set(intakeSpeed);
               wait(400);
               mg_Shooter.stopMotor();
               auto6BackCargo = true;
