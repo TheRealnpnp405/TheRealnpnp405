@@ -12,6 +12,7 @@
 package frc.robot;
 
 import edu.wpi.first.wpilibj.TimedRobot;
+import edu.wpi.first.wpilibj.Ultrasonic;
 import edu.wpi.first.wpilibj.smartdashboard.SmartDashboard;
 import edu.wpi.first.wpilibj.Joystick;
 import edu.wpi.first.wpilibj.motorcontrol.MotorControllerGroup;
@@ -19,9 +20,9 @@ import edu.wpi.first.wpilibj.motorcontrol.MotorControllerGroup;
 import edu.wpi.first.wpilibj.motorcontrol.Spark;
 import edu.wpi.first.wpilibj.drive.DifferentialDrive;
 import edu.wpi.first.wpilibj.Encoder;
-import edu.wpi.first.wpilibj.RobotController;  //RoboRIO functions
+//import edu.wpi.first.wpilibj.RobotController;  //RoboRIO functions
 //import edu.wpi.first.wpilibj.DriverStation; // get station info from DriverStation
-import edu.wpi.first.wpilibj.AnalogInput; // RoboRio ANALOG IN 0-3
+//import edu.wpi.first.wpilibj.AnalogInput; // RoboRio ANALOG IN 0-3
 import edu.wpi.first.wpilibj.DigitalInput; // RoboRIO DIO Ports
 import edu.wpi.first.wpilibj.PneumaticsModuleType; // Pneumatics Control Module
 import edu.wpi.first.wpilibj.Compressor; // ability to use compressor
@@ -117,8 +118,8 @@ public class Robot extends TimedRobot {
 
   // Ultrasonic
   public double voltageScaleFactor = 1;
-  public AnalogInput ultrasonicSensor = new AnalogInput(0);
-  int ultrasonicOffset = 13; // TODO Set this value with bumper on
+  Ultrasonic ultrasonicSensor = new Ultrasonic(9, 8);
+  double ultrasonicOffset = 12.95; 
 
   // GLOBAL VARIABLES
   boolean forwardDriveToggle = true;
@@ -172,6 +173,8 @@ public class Robot extends TimedRobot {
     shooterCamera = CameraServer.startAutomaticCapture(0);
     intakeCamera = CameraServer.startAutomaticCapture(1);
     cameraSelection = NetworkTableInstance.getDefault().getTable("").getEntry("CameraSelection");
+
+    Ultrasonic.setAutomaticMode(true);
   }
 
   /**
@@ -259,7 +262,7 @@ public class Robot extends TimedRobot {
       } else if (controller.getRawButton(rbButton)) { // controller X button
         mg_Shooter.set(getShooterSpeeed());
       } else if (controller.getRawButton(lbButton)) { // reverse balls with sensor on
-        mg_Shooter.set(-1);
+        mg_Shooter.set(-.75);
       } else {
         mg_Shooter.stopMotor();
       }
@@ -553,10 +556,7 @@ public class Robot extends TimedRobot {
    */
   public double getultrasonicSensorRangeInches() {
     if (bUseDistanceSensorToShoot) {
-      double dUltrasonicRaw = ultrasonicSensor.getValue();
-      double dVoltage = 5/RobotController.getVoltage5V();
-      double dInchConversion = 0.0492;
-      return ((dUltrasonicRaw * dVoltage) * dInchConversion) - ultrasonicOffset;
+      return ultrasonicSensor.getRangeInches() - ultrasonicOffset;
     }
     else {
       return 999;
