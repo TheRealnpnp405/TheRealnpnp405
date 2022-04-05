@@ -296,7 +296,7 @@ public class Robot extends TimedRobot {
       climbPart1();
       climbPart2();
       if (!bClimberAbort) {
-        climbPart3();
+       climbPart3();
       } else {
         bClimberHooked = false;
       }
@@ -488,15 +488,15 @@ public class Robot extends TimedRobot {
         bClimberHooked = true;
         bClimberAbort = true;
       } else if (ls_climbRioSide.get() && ls_climbAirSide.get()) { // zero touching
-        drive_Main.arcadeDrive(-.5, 0);
+        drive_Main.arcadeDrive(-.47, 0);
         System.out.println("7454: Climb - no touch");
       } else if (ls_climbRioSide.get() && !ls_climbAirSide.get()) { // AirSide is touching, RioSide is not = turn right
-        mg_RioSide.set(-.45);
-        mg_AirSide.set(.35);
+        mg_RioSide.set(-.35);
+        mg_AirSide.set(-.07);
         System.out.println("7454: Climb  - Airside touching, Rioside not");
       } else if (!ls_climbRioSide.get() && ls_climbAirSide.get()) { // RioSide is touching, AirSide is not = turn left
-        mg_AirSide.set(-.45);
-        mg_RioSide.set(.35);
+        mg_AirSide.set(-.35);
+        mg_RioSide.set(-.07);
         System.out.println("7454: Climb  - Airside touching, Rioside not");
       } else if (!ls_climbRioSide.get() && !ls_climbAirSide.get()) { // both touching
         System.out.println("7454: Climb  - Hooked!!!");
