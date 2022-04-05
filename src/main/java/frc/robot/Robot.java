@@ -100,6 +100,7 @@ public class Robot extends TimedRobot {
   // ENCODERS
   Encoder enc_RioSide;
   Encoder enc_AirSide;
+  double kP = 1; // Proportional control for driving straight
 
   // DIGITAL INPUT PORTS
   // DigitalInput(0), DigitalInput(1) are mapped to encoder enc_AirSide
@@ -122,6 +123,11 @@ public class Robot extends TimedRobot {
   Ultrasonic ultrasonicSensor = new Ultrasonic(9, 8);
   double ultrasonicOffset = 12.95; 
 
+  // CONTROL VARIABLES
+  boolean bUseDistanceSensorToShoot = true;
+  boolean debugMode = false;
+
+
   // GLOBAL VARIABLES
   boolean forwardDriveToggle = true;
   boolean intakeToggle = true;
@@ -129,7 +135,7 @@ public class Robot extends TimedRobot {
   int gameInfoStation = 0;
   boolean bClimberHooked = false;
   boolean bClimberAbort = false;
-  boolean bUseDistanceSensorToShoot = true;
+
   // shooter
   // TODO Fine tune these distances with ultrasonic on and off.
   double shooterMaxDistance = 40; // How many inches can we accurately shoot when motors running at 100%?
@@ -352,18 +358,14 @@ public class Robot extends TimedRobot {
   @Override
   public void autonomousPeriodic() {
 
-    boolean autodebug = false;
-
-    if (autodebug) {
-      System.out.println("0 autoRunCounter: " + autoRunCounter);
-      System.out.println("0 auto6BackCargo: " + auto6BackCargo);
-      System.out.println("0 autoBallShot: " + autoBallShot);
-      System.out.println("0 getultrasonicSensorRangeInches: " + getultrasonicSensorRangeInches());
-      System.out.println("0 getShooterSpeeed(): " + this.getShooterSpeeed());
-      System.out.println("0 enc_RioSide.getDistance(): " + enc_RioSide.getDistance());
-      System.out.println("0 enc_AirSide.getDistance(): " + enc_AirSide.getDistance());
-      System.out.println("------------------------------------------------------");
-    }
+    printInConsole("0 autoRunCounter: " + autoRunCounter);
+    printInConsole("0 auto6BackCargo: " + auto6BackCargo);
+    printInConsole("0 autoBallShot: " + autoBallShot);
+    printInConsole("0 getultrasonicSensorRangeInches: " + getultrasonicSensorRangeInches());
+    printInConsole("0 getShooterSpeeed(): " + this.getShooterSpeeed());
+    printInConsole("0 enc_RioSide.getDistance(): " + enc_RioSide.getDistance());
+    printInConsole("0 enc_AirSide.getDistance(): " + enc_AirSide.getDistance());
+    printInConsole("------------------------------------------------------");
 
     while (isAutonomous() && isEnabled()) {
       
@@ -395,7 +397,7 @@ public class Robot extends TimedRobot {
               wait(400);
               mg_Shooter.stopMotor();
               auto6BackCargo = true;
-              System.out.println("7454: Auto6Points: Got Cargo");
+              printInConsole("7454: Auto6Points: Got Cargo");
               // drive forward
                 drive_Main.arcadeDrive(-.6, 0);
                 wait(2500);
@@ -405,19 +407,19 @@ public class Robot extends TimedRobot {
                 mg_Shooter.stopMotor();
                 autoRunCounter++;
                 drive_Main.stopMotor();
-                System.out.println("7454: Auto6Points complete");
+                printInConsole("7454: Auto6Points complete");
               
             }
           } else {
             autoRunCounter++;
             drive_Main.stopMotor();
-            System.out.println("7454: Auto6Points complete ball not found");
+            printInConsole("7454: Auto6Points complete ball not found");
           }
         }  
       } // END 6 POINT SWITCH   
       else {
         // 4 POINTS
-        System.out.println("7454: Auto4Points: Selected");
+        printInConsole("7454: Auto4Points: Selected");
 
         // 1 . Shoot
         if (autoRunCounter == 0 && !autoBallShot) {
@@ -440,7 +442,7 @@ public class Robot extends TimedRobot {
           } else {
             autoRunCounter++;
             drive_Main.stopMotor();
-            System.out.println("7454: Auto4Points complete");
+            printInConsole("7454: Auto4Points complete");
           }
         }
       } // 4 POINT SWITCH
@@ -483,23 +485,23 @@ public class Robot extends TimedRobot {
   public void climbPart2() {
     while (!bClimberHooked) {
       if (flight.getRawButton(flight4) == true) { // abort climb
-        System.out.println("7454: Climb  - Abort.");
+        printInConsole("7454: Climb  - Abort.");
         drive_Main.stopMotor();
         bClimberHooked = true;
         bClimberAbort = true;
       } else if (ls_climbRioSide.get() && ls_climbAirSide.get()) { // zero touching
         drive_Main.arcadeDrive(-.47, 0);
-        System.out.println("7454: Climb - no touch");
+        printInConsole("7454: Climb - no touch");
       } else if (ls_climbRioSide.get() && !ls_climbAirSide.get()) { // AirSide is touching, RioSide is not = turn right
         mg_RioSide.set(-.35);
         mg_AirSide.set(-.07);
-        System.out.println("7454: Climb  - Airside touching, Rioside not");
+        printInConsole("7454: Climb  - Airside touching, Rioside not");
       } else if (!ls_climbRioSide.get() && ls_climbAirSide.get()) { // RioSide is touching, AirSide is not = turn left
         mg_AirSide.set(-.35);
         mg_RioSide.set(-.07);
-        System.out.println("7454: Climb  - Airside touching, Rioside not");
+        printInConsole("7454: Climb  - Airside touching, Rioside not");
       } else if (!ls_climbRioSide.get() && !ls_climbAirSide.get()) { // both touching
-        System.out.println("7454: Climb  - Hooked!!!");
+        printInConsole("7454: Climb  - Hooked!!!");
         drive_Main.stopMotor();
         bClimberHooked = true;
       }
@@ -566,6 +568,41 @@ public class Robot extends TimedRobot {
     }
   }
 
+  // TODO - Test this
+  /**
+  * Drive Straight using encoders
+  * @parm power = Speed to drive
+  * @parm distance = how far to drive in feet
+  */
+  public void DriveStraightWithEncoder(double power, double distance) {
+    double error = 0; 
+    mg_AirSide.setInverted(false);
+    mg_RioSide.setInverted(true);
+
+    // reset encoders
+    enc_RioSide.reset();
+    enc_AirSide.reset();
+  
+    printInConsole("7454: DriveStraightWithEncoder");
+  
+    if ((enc_RioSide.getDistance() + enc_AirSide.getDistance())/2 < distance)
+    {
+      error = enc_RioSide.getDistance() - enc_AirSide.getDistance();
+      drive_Main.tankDrive(power + kP * error, power - kP * error);
+      printInConsole("ERROR" + error);
+    }
+    else
+    {
+      drive_Main.stopMotor();
+    }
+  }  
+
+  public void printInConsole(String x) {
+    if (debugMode = true) {
+      System.out.println(x);
+    }
+  }
+
   // ********************************
   // * MODES WE DON"T USE, BUT COULD
   // ********************************
@@ -585,6 +622,7 @@ public class Robot extends TimedRobot {
 
   @Override
   public void testPeriodic() {
+    DriveStraightWithEncoder(.4, 2);
   }
 
   /** This function is called once when the robot is first started up. */
@@ -595,31 +633,5 @@ public class Robot extends TimedRobot {
   @Override
   public void simulationPeriodic() {
   }
-
-  // /**
-  // * Drive Straight using encoders
-  // * @parm power = Speed to drive
-  // * @parm distance = how far to drive in feet
-  // */
-  // public void DriveStraightWithEncoder(double power, double distance) {
-  // double error = 0;
-  // double turnPower = .1;
-  // double motorDirection = Math.signum(power);
-
-  // mg_AirSide.setInverted(false);
-  // mg_RioSide.setInverted(true);
-
-  // System.out.println("7454: DriveStraightWithEncoder");
-
-  // while ((enc_RioSide.getDistance() + enc_AirSide.getDistance())/2 < distance)
-  // {
-  // error = enc_RioSide.getDistance() - enc_AirSide.getDistance();
-  // turnPower = error * motorDirection;
-  // drive_Main.arcadeDrive(power, turnPower);
-  // System.out.println("ERROR" + error);
-  // System.out.println("turnPower" + turnPower);
-  // System.out.println("turnPower" + turnPower);
-  // }
-  // }
 
 } // END Robot
