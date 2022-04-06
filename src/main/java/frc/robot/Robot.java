@@ -101,6 +101,8 @@ public class Robot extends TimedRobot {
   Encoder enc_RioSide;
   Encoder enc_AirSide;
   double kP = 1; // Proportional control for driving straight
+  boolean TestLoop = false;
+  double error = 0;
 
   // DIGITAL INPUT PORTS
   // DigitalInput(0), DigitalInput(1) are mapped to encoder enc_AirSide
@@ -126,7 +128,7 @@ public class Robot extends TimedRobot {
   // CONTROL VARIABLES
   boolean bUseDistanceSensorToShoot = true;
   boolean debugMode = false;
-
+  boolean DriveStraightDebug = false;
 
   // GLOBAL VARIABLES
   boolean forwardDriveToggle = true;
@@ -575,27 +577,34 @@ public class Robot extends TimedRobot {
   * @parm distance = how far to drive in feet
   */
   public void DriveStraightWithEncoder(double power, double distance) {
-    double error = 0; 
-    mg_AirSide.setInverted(false);
-    mg_RioSide.setInverted(true);
+    // only do this once
+    if (!TestLoop) {
+     error = 0; 
+     mg_AirSide.setInverted(false);
+     mg_RioSide.setInverted(true);
 
-    // reset encoders
-    enc_RioSide.reset();
-    enc_AirSide.reset();
-  
-    printInConsole("7454: DriveStraightWithEncoder");
-  
-    if ((enc_RioSide.getDistance() + enc_AirSide.getDistance())/2 < distance)
-    {
+     // reset encoders
+     enc_RioSide.reset();
+     enc_AirSide.reset();
+     TestLoop = true;
+    }
+
+    // debug statments
+    if (DriveStraightDebug) {
+     SmartDashboard.putNumber("Error", error);
+     SmartDashboard.putNumber( "Left Speed", power + kP * error);
+     SmartDashboard.putNumber( "Right Speed", power - kP * error);
+     SmartDashboard.putBoolean("TestLoop", TestLoop);
+     SmartDashboard.putNumber("distance", (enc_RioSide.getDistance() + enc_AirSide.getDistance())/2);
+    }
+
+    if (((enc_RioSide.getDistance() + enc_AirSide.getDistance())/2)*-1 < distance) {
       error = enc_RioSide.getDistance() - enc_AirSide.getDistance();
       drive_Main.tankDrive(power + kP * error, power - kP * error);
-      printInConsole("ERROR" + error);
-    }
-    else
-    {
+    } else {
       drive_Main.stopMotor();
     }
-  }  
+  }
 
   public void printInConsole(String x) {
     if (debugMode = true) {
@@ -622,7 +631,7 @@ public class Robot extends TimedRobot {
 
   @Override
   public void testPeriodic() {
-    DriveStraightWithEncoder(.4, 2);
+    DriveStraightWithEncoder(.5, 8);
   }
 
   /** This function is called once when the robot is first started up. */
