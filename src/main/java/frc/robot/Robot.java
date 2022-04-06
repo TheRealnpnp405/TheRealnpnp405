@@ -154,6 +154,7 @@ public class Robot extends TimedRobot {
   boolean autoBallShot = false;
   boolean auto6BackCargo = false;
   boolean autoBallShot2 = false;
+  boolean AutoDriveCompleate = false;
 
   /**
    * This function is run when the robot is first started up and should be used for any initialization code.
@@ -575,14 +576,18 @@ public class Robot extends TimedRobot {
   * Drive Straight using encoders
   * @parm power = Speed to drive
   * @parm distance = how far to drive in feet
+  * @parm forwardDrive true = Intake Side, false = Shoot Side
   */
-  public void DriveStraightWithEncoder(double power, double distance) {
-    // only do this once
-    if (!TestLoop) {
-     error = 0; 
-     mg_AirSide.setInverted(false);
-     mg_RioSide.setInverted(true);
-
+  public void DriveStraightWithEncoder(double power, double distance, boolean forwardDrive) {    
+    if (!TestLoop) {  // only do this once
+     if (!forwardDrive) {
+      mg_AirSide.setInverted(false);
+      mg_RioSide.setInverted(true);
+     } else if (forwardDrive) {
+      mg_AirSide.setInverted(true);
+      mg_RioSide.setInverted(false);
+     }
+     error = 0;
      // reset encoders
      enc_RioSide.reset();
      enc_AirSide.reset();
@@ -595,14 +600,17 @@ public class Robot extends TimedRobot {
      SmartDashboard.putNumber( "Left Speed", power + kP * error);
      SmartDashboard.putNumber( "Right Speed", power - kP * error);
      SmartDashboard.putBoolean("TestLoop", TestLoop);
-     SmartDashboard.putNumber("distance", (enc_RioSide.getDistance() + enc_AirSide.getDistance())/2);
+     SmartDashboard.putNumber("distance", (Math.abs((enc_RioSide.getDistance() + enc_AirSide.getDistance())/2)));
     }
 
-    if (((enc_RioSide.getDistance() + enc_AirSide.getDistance())/2)*-1 < distance) {
+    if ((Math.abs((enc_RioSide.getDistance() + enc_AirSide.getDistance())/2)) < distance) {
       error = enc_RioSide.getDistance() - enc_AirSide.getDistance();
       drive_Main.tankDrive(power + kP * error, power - kP * error);
+      AutoDriveCompleate = false;
     } else {
       drive_Main.stopMotor();
+      AutoDriveCompleate = true;
+      TestLoop = false;
     }
   }
 
@@ -627,11 +635,19 @@ public class Robot extends TimedRobot {
   /** This function is called once when test mode is enabled. */
   @Override
   public void testInit() {
+    TestLoop = false;
+    AutoDriveCompleate = false;
   }
 
   @Override
   public void testPeriodic() {
-    DriveStraightWithEncoder(.5, 8);
+    while (!AutoDriveCompleate) {
+     DriveStraightWithEncoder(.5, 4, true);
+    }
+    AutoDriveCompleate = false;
+    while (!AutoDriveCompleate) {
+      DriveStraightWithEncoder(.5, 4, false);
+     }
   }
 
   /** This function is called once when the robot is first started up. */
