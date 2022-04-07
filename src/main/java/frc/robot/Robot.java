@@ -100,9 +100,6 @@ public class Robot extends TimedRobot {
   // ENCODERS
   Encoder enc_RioSide;
   Encoder enc_AirSide;
-  double kP = 1; // Proportional control for driving straight
-  boolean TestLoop = false;
-  double error = 0;
 
   // DIGITAL INPUT PORTS
   // DigitalInput(0), DigitalInput(1) are mapped to encoder enc_AirSide
@@ -128,7 +125,6 @@ public class Robot extends TimedRobot {
   // CONTROL VARIABLES
   boolean bUseDistanceSensorToShoot = true;
   boolean debugMode = false;
-  boolean DriveStraightDebug = false;
 
   // GLOBAL VARIABLES
   boolean forwardDriveToggle = true;
@@ -154,7 +150,6 @@ public class Robot extends TimedRobot {
   boolean autoBallShot = false;
   boolean auto6BackCargo = false;
   boolean autoBallShot2 = false;
-  boolean AutoDriveCompleate = false;
 
   /**
    * This function is run when the robot is first started up and should be used for any initialization code.
@@ -380,44 +375,22 @@ public class Robot extends TimedRobot {
           wait(1500); // run and make sure balls clear
           mg_Shooter.stopMotor();
           autoBallShot = true;
-
-          // reset encoders
-          enc_RioSide.reset();
-          enc_AirSide.reset();
         }
 
         // 2 . Backup
         if (autoRunCounter == 0 && autoBallShot) {
-          // drive backwards 5.2 feet based on encoder
-          if ((enc_RioSide.getDistance() + enc_AirSide.getDistance()) / 2 < 8) {
-            if(!auto6BackCargo)
-            {
-              drive_Main.arcadeDrive(.6, 0);
-            }
-            if (s_ballSensor.get() == true) {
-              drive_Main.stopMotor();
-              mg_Intake.set(intakeSpeed);
-              wait(400);
-              mg_Shooter.stopMotor();
-              auto6BackCargo = true;
-              printInConsole("7454: Auto6Points: Got Cargo");
-              // drive forward
-                drive_Main.arcadeDrive(-.6, 0);
-                wait(2500);
-                drive_Main.stopMotor();
-                mg_Shooter.set(getShooterSpeeed());
-                wait(1500); // run and make sure balls clear
-                mg_Shooter.stopMotor();
-                autoRunCounter++;
-                drive_Main.stopMotor();
-                printInConsole("7454: Auto6Points complete");
-              
-            }
-          } else {
-            autoRunCounter++;
-            drive_Main.stopMotor();
-            printInConsole("7454: Auto6Points complete ball not found");
+          driveStraightWithEncoder(-.5, 7);
+          while (getultrasonicSensorRangeInches() > 30) {
+            driveStraightWithEncoder(.5, .5);
           }
+          drive_Main.stopMotor();
+          mg_Shooter.set(getShooterSpeeed());
+          wait(1500); // run and make sure balls clear
+          mg_Shooter.stopMotor();
+          autoRunCounter++;
+          drive_Main.stopMotor();
+          printInConsole("7454: Auto6Points complete");
+          autoRunCounter++;
         }  
       } // END 6 POINT SWITCH   
       else {
@@ -431,22 +404,13 @@ public class Robot extends TimedRobot {
           wait(1800); // run and make sure balls clear
           mg_Shooter.stopMotor();
           autoBallShot = true;
-
-          // reset encoders
-          enc_RioSide.reset();
-          enc_AirSide.reset();
         }
 
         // 2 . Backup
         if (autoRunCounter == 0 && autoBallShot) {
-          // drive backwards 5.2 feet based on encoder
-          if ((enc_RioSide.getDistance() + enc_AirSide.getDistance()) / 2 < 5.2) {
-            drive_Main.arcadeDrive(.6, 0);
-          } else {
-            autoRunCounter++;
-            drive_Main.stopMotor();
-            printInConsole("7454: Auto4Points complete");
-          }
+          driveStraightWithEncoder(-.6, 5.2);
+          autoRunCounter++;
+          printInConsole("7454: Auto4Points complete");
         }
       } // 4 POINT SWITCH
     } // END while(isAutonomous() && isEnabled()) {
@@ -574,44 +538,38 @@ public class Robot extends TimedRobot {
   // TODO - Test this
   /**
   * Drive Straight using encoders
-  * @parm power = Speed to drive
+  * @parm power = Speed to drive (negative intake side, postive shooter side)
   * @parm distance = how far to drive in feet
-  * @parm forwardDrive true = Intake Side, false = Shoot Side
   */
-  public void DriveStraightWithEncoder(double power, double distance, boolean forwardDrive) {    
-    if (!TestLoop) {  // only do this once
-     if (!forwardDrive) {
-      mg_AirSide.setInverted(false);
-      mg_RioSide.setInverted(true);
-     } else if (forwardDrive) {
-      mg_AirSide.setInverted(true);
-      mg_RioSide.setInverted(false);
-     }
-     error = 0;
+  public void driveStraightWithEncoder(double power, double distance) {
+     double error = 0;
+     double kP = 1; // Proportional control for driving straight
+     boolean gotCargo = false;
+     mg_AirSide.setInverted(false);
+     mg_RioSide.setInverted(true);
+
      // reset encoders
      enc_RioSide.reset();
      enc_AirSide.reset();
-     TestLoop = true;
-    }
 
-    // debug statments
-    if (DriveStraightDebug) {
-     SmartDashboard.putNumber("Error", error);
-     SmartDashboard.putNumber( "Left Speed", power + kP * error);
-     SmartDashboard.putNumber( "Right Speed", power - kP * error);
-     SmartDashboard.putBoolean("TestLoop", TestLoop);
-     SmartDashboard.putNumber("distance", (Math.abs((enc_RioSide.getDistance() + enc_AirSide.getDistance())/2)));
-    }
+     printInConsole("7454: driveStraightWithEncoder Stating");
 
-    if ((Math.abs((enc_RioSide.getDistance() + enc_AirSide.getDistance())/2)) < distance) {
-      error = enc_RioSide.getDistance() - enc_AirSide.getDistance();
-      drive_Main.tankDrive(power + kP * error, power - kP * error);
-      AutoDriveCompleate = false;
-    } else {
+    while (((Math.abs((enc_RioSide.getDistance() + enc_AirSide.getDistance())/2)) < distance) && !gotCargo) {
+     error = enc_RioSide.getDistance() - enc_AirSide.getDistance();
+     drive_Main.tankDrive(power + kP * error, power - kP * error);
+     if (s_ballSensor.get() == true) {
       drive_Main.stopMotor();
-      AutoDriveCompleate = true;
-      TestLoop = false;
+      mg_Intake.set(intakeSpeed);
+      wait(400);
+      mg_Shooter.stopMotor();
+      auto6BackCargo = true;
+      gotCargo = true;
+      printInConsole("7454: driveStraightWithEncoder: Got Cargo");
+     }
     }
+     drive_Main.stopMotor();
+     gotCargo = false;
+     printInConsole("7454: driveStraightWithEncoder Stoping");
   }
 
   public void printInConsole(String x) {
@@ -635,19 +593,14 @@ public class Robot extends TimedRobot {
   /** This function is called once when test mode is enabled. */
   @Override
   public void testInit() {
-    TestLoop = false;
-    AutoDriveCompleate = false;
   }
 
   @Override
   public void testPeriodic() {
-    while (!AutoDriveCompleate) {
-     DriveStraightWithEncoder(.5, 4, true);
-    }
-    AutoDriveCompleate = false;
-    while (!AutoDriveCompleate) {
-      DriveStraightWithEncoder(.5, 4, false);
-     }
+    driveStraightWithEncoder(.5, 2);
+    wait(1500);
+    driveStraightWithEncoder(-.5, 2);
+    wait(1500);
   }
 
   /** This function is called once when the robot is first started up. */
