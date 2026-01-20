@@ -16,11 +16,7 @@ ___
    - This website serves as my main landing page for people looking to commission me, and allows customers and promoters to log in and check their invoices via Discord.
    - The website also has Admin pages that allow me to track invoices, add entries to my showcase page, and manage promoters.
    - I am utilizing Supabase and Vercel to run the database and host the website, respectively.
-   - Most of the codebase was created utilizing Curser, as I am still learning JS, TS, and HTML.
-   - **Current Issues**
-     - My function that creates a new entry into my profiles table upon a new user logging in is failing to populate a new row.
-       - Users who are already in the system can log in.
-       - New users are sent into an endless login loop
+   - Most of the codebase for the website was created utilizing Curser, as I am still learning JS, TS, and HTML.
 - **Power injector for USB-C devices**
   - I am designing a USB-C power injector to address an issue with Quest Link, where many computers cannot supply enough continuous power to keep the headset charged during use.
   - The injector allows a high-power external charger to power the headset while maintaining high-speed data transfer with the computer and preventing power from being back-fed into the PC.
